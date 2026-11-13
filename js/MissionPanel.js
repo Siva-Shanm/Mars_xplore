@@ -175,8 +175,8 @@ export class MissionPanel {
     if (this.canWatch?.(m.id)) {
       frag.append(el('div', { class: 'watch' },
         el('button', { type: 'button', class: 'btn btn-primary', id: 'btn-watch', 'data-action': 'watch', onclick: () => this.onWatch?.(m.id) },
-          el('span', { class: 'watch-icon', 'aria-hidden': 'true', text: '▶' }), ' Watch rover journey'),
-        el('p', { class: 'note', text: 'An illustrative surface close-up with play, pause and a stop-by-stop timeline. Schematic · not to scale.' })))
+          el('span', { class: 'watch-icon', 'aria-hidden': 'true', text: '▶' }), ' Watch with Neo'),
+        el('p', { class: 'note', text: 'Neo guides you through this mission’s drive, discoveries and ending. Schematic · distances and timing simplified.' })))
     }
 
     // Dates and metrics -----------------------------------------------------

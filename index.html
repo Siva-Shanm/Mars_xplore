@@ -6,29 +6,33 @@
   <title>Mars Rover Interactive Globe</title>
   <meta name="description" content="Orbit Mars and explore the landing sites, journeys and discoveries of Mars Pathfinder & Sojourner, Spirit, and Opportunity, with NASA sources.">
   <meta name="color-scheme" content="dark">
-  <link rel="stylesheet" href="css/styles.css?v=2">
+  <link rel="stylesheet" href="css/styles.css?v=3">
   <script type="importmap">
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
       "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.13.0/index.js",
-      "./js/main.js": "./js/main.js?v=2",
-      "./js/GlobeRenderer.js": "./js/GlobeRenderer.js?v=2",
-      "./js/CameraFlight.js": "./js/CameraFlight.js?v=2",
-      "./js/TraverseRenderer.js": "./js/TraverseRenderer.js?v=2",
-      "./js/geography.js": "./js/geography.js?v=2",
-      "./js/validate.js": "./js/validate.js?v=2",
-      "./js/MissionPanel.js": "./js/MissionPanel.js?v=2",
-      "./js/replays.js": "./js/replays.js?v=2",
-      "./js/ReplayController.js": "./js/ReplayController.js?v=2",
-      "./js/RoverModels.js": "./js/RoverModels.js?v=2",
-      "./js/SurfaceScene.js": "./js/SurfaceScene.js?v=2",
-      "./js/EvidenceView.js": "./js/EvidenceView.js?v=2"
+      "./js/main.js": "./js/main.js?v=3",
+      "./js/GlobeRenderer.js": "./js/GlobeRenderer.js?v=3",
+      "./js/CameraFlight.js": "./js/CameraFlight.js?v=3",
+      "./js/TraverseRenderer.js": "./js/TraverseRenderer.js?v=3",
+      "./js/geography.js": "./js/geography.js?v=3",
+      "./js/validate.js": "./js/validate.js?v=3",
+      "./js/MissionPanel.js": "./js/MissionPanel.js?v=3",
+      "./js/replays.js": "./js/replays.js?v=3",
+      "./js/tour.js": "./js/tour.js?v=3",
+      "./js/TourController.js": "./js/TourController.js?v=3",
+      "./js/TourStage.js": "./js/TourStage.js?v=3",
+      "./js/NeoCharacter.js": "./js/NeoCharacter.js?v=3",
+      "./js/NeoView.js": "./js/NeoView.js?v=3",
+      "./js/Narrator.js": "./js/Narrator.js?v=3",
+      "./js/RoverModels.js": "./js/RoverModels.js?v=3",
+      "./js/EvidenceView.js": "./js/EvidenceView.js?v=3"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=2"></script>
+  <script type="module" src="./js/main.js?v=3"></script>
 </head>
 <body>
   <a class="skip-link" href="#mission-nav">Skip to mission list</a>
@@ -56,6 +60,14 @@
     <section class="globe-region" aria-labelledby="globe-heading">
       <h2 id="globe-heading" class="visually-hidden">Mars globe and mission navigator</h2>
 
+      <div class="entry">
+        <div class="entry-primary">
+          <button type="button" id="btn-neo" class="btn btn-primary btn-hero" aria-describedby="neo-desc">Explore with Neo</button>
+          <p id="neo-desc" class="entry-desc">Follow Neo across Mars to watch the rovers drive, see what they discovered, and learn how their missions ended.</p>
+        </div>
+        <button type="button" id="btn-free" class="btn btn-secondary">Explore the globe</button>
+      </div>
+
       <nav class="mission-nav-wrap" aria-label="Missions">
         <div id="mission-nav" class="mission-nav" tabindex="-1"></div>
       </nav>
@@ -72,48 +84,78 @@
         <div id="poi-layer" class="poi-layer"></div>
         <div id="globe-status" class="globe-status" aria-live="polite"></div>
         <div id="stage-message" class="stage-message" hidden></div>
-        <p class="surface-badge">Schematic · not to scale · Illustrative terrain</p>
+        <p class="surface-badge">Schematic · distances and timing simplified</p>
+        <p id="tour-banner" class="tour-banner" hidden></p>
+        <div id="tour-cards" class="tour-cards" aria-live="polite"></div>
+        <p id="neo-tag" class="neo-tag" hidden aria-hidden="true">Neo · fictional guide</p>
         <div class="stage-fade" aria-hidden="true"></div>
       </div>
 
-      <section id="replay" class="replay" aria-labelledby="replay-title" hidden>
-        <div class="replay-head">
-          <h2 id="replay-title" class="replay-title">Journey replay</h2>
-          <div class="replay-badges">
-            <span class="scale-badge">Schematic · not to scale</span>
-            <span class="scale-badge">Illustrative terrain</span>
-            <span id="replay-model" class="scale-badge model-badge"></span>
+      <section id="tour" class="tour" aria-labelledby="tour-heading" hidden>
+        <div class="tour-head">
+          <div>
+            <h2 id="tour-heading" class="tour-title">Neo’s guided expedition</h2>
+            <p id="tour-chapter" class="tour-chapter"></p>
+          </div>
+          <div class="tour-badges">
+            <span class="scale-badge">Schematic · distances and timing simplified</span>
+            <span class="scale-badge">Neo is a fictional guide</span>
           </div>
         </div>
-        <div id="replay-caption" class="replay-caption">
-          <p id="replay-caption-text" class="replay-caption-text"></p>
-          <p id="replay-caption-src" class="cite"></p>
+        <p id="tour-stop" class="tour-stop" aria-live="off"></p>
+        <div class="tour-caption">
+          <p class="tour-speaker" aria-hidden="true">Neo</p>
+          <p id="tour-line" class="tour-line"></p>
+          <p id="tour-label" class="tour-label"></p>
+          <details class="tour-sources"><summary>Sources for this stop</summary><ul id="tour-sources-list"></ul></details>
         </div>
-        <div class="replay-progress" aria-hidden="true"><span class="replay-progress-fill"></span></div>
-        <div class="replay-controls" role="group" aria-label="Replay controls">
-          <button type="button" id="replay-back" class="btn">← Back to globe</button>
-          <button type="button" id="replay-prev" class="btn">Previous stop</button>
-          <button type="button" id="replay-play" class="btn btn-primary" aria-pressed="false">Play</button>
-          <button type="button" id="replay-next" class="btn">Next stop</button>
-          <button type="button" id="replay-restart" class="btn">Replay</button>
+        <div id="tour-error" class="tour-error" role="status" hidden>Neo couldn’t build this 3D scene. The captions, cards and sources continue below.</div>
+        <figure id="tour-still" class="tour-still" hidden>
+          <img alt="" decoding="async">
+          <div class="tour-still-ph" hidden>Image unavailable</div>
+          <figcaption></figcaption>
+        </figure>
+        <div id="tour-neo-still" class="tour-neo-still" hidden>
+          <span class="neo-crop" role="img" aria-label="Neo, a blue hovering robot guide (reference artwork)"></span>
+          <p>Text guide: the 3D view is unavailable, so Neo’s tour continues as captions.</p>
+        </div>
+        <div class="tour-inspect-row">
+          <button type="button" id="tour-inspect" class="btn btn-inspect" hidden>Inspect</button>
+          <button type="button" id="tour-inspect-close" class="btn" hidden>Close inspection</button>
+          <span id="tour-inspect-note" class="note" hidden>Tour paused here. Drag the view to look around; closing returns to the same moment.</span>
+        </div>
+        <div class="tour-progress" aria-hidden="true"><span class="tour-progress-fill"></span></div>
+        <div class="tour-controls" role="group" aria-label="Tour controls">
+          <button type="button" id="tour-back" class="btn">← Back to globe</button>
+          <button type="button" id="tour-prev" class="btn">Previous stop</button>
+          <button type="button" id="tour-play" class="btn btn-primary" aria-pressed="false">Pause</button>
+          <button type="button" id="tour-next" class="btn">Next stop</button>
+          <button type="button" id="tour-replay" class="btn">Replay chapter</button>
+          <button type="button" id="tour-listen" class="btn" aria-pressed="false">Listen to Neo</button>
+          <button type="button" id="tour-replay-line" class="btn">Replay line</button>
           <label class="scrub">
-            <span class="scrub-label">Replay position</span>
-            <input type="range" id="replay-scrub" min="0" max="1000" step="1" value="0">
+            <span class="scrub-label">Tour position</span>
+            <input type="range" id="tour-scrub" min="0" max="1000" step="1" value="0">
           </label>
-          <output id="replay-time" class="num replay-time">0:00 / 0:00</output>
+          <output id="tour-time" class="num replay-time">0:00 / 0:00</output>
         </div>
-        <p id="replay-motion-note" class="note" hidden>Reduced motion is on: still poses only. Use Previous/Next stop, the stop list, or the scrubber.</p>
-        <p id="replay-seq" class="note"></p>
-        <ol id="replay-stops" class="replay-stops" aria-label="Journey timeline stops"></ol>
-        <div class="replay-chips-wrap">
-          <div id="replay-chips" class="replay-chips"></div>
-          <p id="replay-chips-src" class="cite"></p>
+        <div class="tour-plan-row">
+          <button type="button" id="tour-plan" class="btn btn-plan" aria-pressed="false" hidden>Show early route plan (dashed)</button>
+          <span id="tour-plan-note" class="note" hidden></span>
         </div>
-        <div class="replay-plan-row">
-          <button type="button" id="replay-plan" class="btn btn-plan" aria-pressed="false" hidden>Show early route plan (dashed)</button>
-          <span id="replay-plan-label" class="note"></span>
+        <ol id="tour-stops" class="replay-stops" aria-label="Chapter stops"></ol>
+        <div id="tour-end" class="tour-end" role="group" aria-labelledby="tour-end-title" hidden>
+          <h3 id="tour-end-title"></h3>
+          <div class="tour-end-actions">
+            <button type="button" id="tour-end-next" class="btn btn-primary btn-hero"></button>
+            <button type="button" id="tour-end-globe" class="btn">Explore the globe</button>
+            <button type="button" id="tour-end-replay" class="btn">Replay chapter</button>
+          </div>
         </div>
-        <div id="replay-notes"></div>
+        <details id="tour-skipped-wrap" class="tour-skipped" hidden>
+          <summary>Beats awaiting source approval</summary>
+          <ul id="tour-skipped"></ul>
+        </details>
       </section>
 
       <div class="toolbar" role="toolbar" aria-label="Globe controls">
@@ -139,7 +181,7 @@
   <div id="announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
   <footer class="site-footer">
-    <p class="build">Version 2 · rover journey replays</p>
+    <p class="build">Version 3 · Neo’s guided expedition</p>
     <p>Mission facts from NASA. Landing markers use published coordinates at globe scale; journeys are schematic unless marked as sourced. Educational prototype.</p>
   </footer>
 </body>

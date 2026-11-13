@@ -9,9 +9,10 @@ import { TraverseRenderer } from './TraverseRenderer.js'
 import { coordinatesToUnit, latLonToUnit } from './geography.js'
 import { resolveLocal } from './validate.js'
 import { RoverLibrary, makeLander, makeSojourner } from './RoverModels.js'
-import { SurfaceScene } from './SurfaceScene.js'
+import { TourStage } from './TourStage.js'
+import { NeoView } from './NeoView.js'
 
-export { RoverLibrary, SurfaceScene }
+export { RoverLibrary, TourStage }
 
 const PICK_LAYER = 1
 const MARKER_LIFT = 0.004
@@ -55,8 +56,10 @@ export function webglAvailable() {
 export class GlobeRenderer {
   constructor({ stage, canvasHost, poiLayer, missions, model, gsap, reducedMotion, callbacks, roverLibrary }) {
     this.library = roverLibrary
-    this.view = 'globe' // 'globe' | 'entering' | 'surface'
-    this.closeup = null
+    this.view = 'globe' // 'globe' | 'tour'
+    this.tourStage = null
+    this.tourFS = null
+    this.neoView = null
     this.playhead = 0
     this.playing = false
     this.viewToken = 0
@@ -217,8 +220,9 @@ export class GlobeRenderer {
     this.traverse?.clear()
     this._unsubLibrary?.()
     this.viewToken++
-    this.closeup?.dispose()
-    this.closeup = null
+    this.tourStage?.dispose()
+    this.tourStage = null
+    this.neoView?.dispose()
     this.callout?.remove()
     this.stage.classList.remove('is-fading', 'is-surface')
     for (const m of this.markers.values()) m.button.remove()
@@ -235,7 +239,7 @@ export class GlobeRenderer {
     this.renderer.setSize(w, h, false)
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
-    this.closeup?.resize(w, h)
+    this.tourStage?.resize(w, h)
     this.homeDistance = this._fitDistance() * 1.12
     this.controls.maxDistance = Math.max(8, this.homeDistance * 1.2)
   }
@@ -480,7 +484,7 @@ export class GlobeRenderer {
 
   _onRoverModelReady() {
     for (const id of ['spirit', 'opportunity']) if (this.markers.has(id)) this._makeGlobeRover(id)
-    this.closeup?.requestModelSwap()
+    this.tourStage?.requestModelSwap()
     this._roverStatus()
   }
 
@@ -500,79 +504,135 @@ export class GlobeRenderer {
     this.callout = el
   }
 
-  /** Fly down to the landing site, then cut to the illustrative close-up. */
-  enterSurface(def, { onArrive } = {}) {
-    const token = ++this.viewToken
-    const m = this.markers.get(def.missionId)
-    this.savedPose = { pos: this.camera.position.clone(), target: this.controls.target.clone(), rot: this.globeRoot.rotation.y }
-    this.closeup?.dispose()
-    const small = Math.min(this.size.w, this.size.h) < 560
-    this.closeup = new SurfaceScene({ def, library: this.library, quality: { shadows: !small, segments: small ? 110 : 180 } })
-    this.closeup.resize(this.size.w, this.size.h)
-    this.closeup.apply(this.playhead, { playing: false })
-    this.view = 'entering'
-    this.selectedId = def.missionId
-    const cut = () => {
-      if (token !== this.viewToken) return
-      this.stage.classList.add('is-fading')
-      setTimeout(() => {
-        if (token !== this.viewToken) return
-        this.flight.cancel()
-        this.controls.enabled = false
-        this.view = 'surface'
-        this.stage.classList.add('is-surface')
-        this.stage.classList.remove('is-fading')
-        onArrive?.()
-      }, this.reducedMotion ? 0 : FADE_MS)
-    }
-    if (!m) { cut(); return }
-    this.globeRoot.updateMatrixWorld(true)
-    const dir = m.anchor.getWorldPosition(new THREE.Vector3()).normalize()
-    const immediate = this.reducedMotion || !this.gsap
-    this.flight.fly({ toDir: dir, toRadius: CLOSE_RADIUS, immediate, onDone: (ok) => { if (ok) cut() } })
-  }
+  // ------------------------------------------------------------ guided tour
 
-  /** Return to the globe, restoring the camera pose saved on entry. */
-  exitSurface() {
-    const token = ++this.viewToken
-    const wasSurface = this.view === 'surface'
+  /** Enter tour mode: OrbitControls off, camera driven by the tour playhead. */
+  beginTour() {
+    if (this.view !== 'tour') this.savedPose = { pos: this.camera.position.clone(), target: this.controls.target.clone() }
     this.flight.cancel()
-    this.view = 'globe'
-    this.setCallout(null)
-    const restore = () => {
-      if (token !== this.viewToken) return
-      this.stage.classList.remove('is-surface', 'is-fading')
-      this.closeup?.dispose()
-      this.closeup = null
-      if (this.flight.active) return // a new selection is already flying from here
-      if (this.savedPose) {
-        this.camera.position.copy(this.savedPose.pos)
-        this.controls.target.copy(this.savedPose.target)
-        this.camera.lookAt(this.controls.target)
-        const d = this.controls.enableDamping
-        this.controls.enableDamping = false
-        this.controls.update()
-        this.controls.enableDamping = d
-      }
-      this.controls.enabled = true
-      this.markInput()
+    this.view = 'tour'
+    this.controls.enabled = false
+    if (!this.neoView) {
+      try { this.neoView = new NeoView() } catch (err) { console.warn('[neo] unavailable', err); this.neoView = null }
     }
-    if (wasSurface && !this.reducedMotion) {
-      this.stage.classList.add('is-fading')
-      setTimeout(restore, FADE_MS)
-    } else restore()
+    this.cb.onNeoStatus?.(this.neoView ? this.neoView.status : 'none')
   }
 
-  get inSurface() { return this.view !== 'globe' }
+  /** Leave tour mode and restore the globe pose saved on entry. */
+  endTour() {
+    if (this.view !== 'tour') return
+    this.view = 'globe'
+    this.tourFS = null
+    this.setCallout(null)
+    this.tourStage?.dispose()
+    this.tourStage = null
+    this.stage.classList.remove('is-surface', 'is-fading')
+    for (const m of this.markers.values()) m.button.classList.remove('is-tour-highlight')
+    if (this.savedPose) {
+      this.camera.position.copy(this.savedPose.pos)
+      this.controls.target.copy(this.savedPose.target)
+      this.camera.lookAt(this.controls.target)
+      const d = this.controls.enableDamping
+      this.controls.enableDamping = false
+      this.controls.update()
+      this.controls.enableDamping = d
+    }
+    this.controls.enabled = true
+    this.markInput()
+  }
 
-  setPlayhead(t, playing) { this.playhead = t; this.playing = playing }
+  /** Build (or reuse) the illustrative stage for a chapter. Old stages are disposed. */
+  loadTourStage(chapterId, run, approvals) {
+    if (this.tourStage && this.tourStage.id === chapterId && this.tourStage.run === run) return this.tourStage
+    this.tourStage?.dispose()
+    this.tourStage = null
+    if (!['pf', 'sp', 'op'].includes(chapterId)) return null
+    const small = Math.min(this.size.w, this.size.h) < 560
+    this.tourStage = new TourStage({ chapterId, run, library: this.library, approvals, quality: { shadows: !small, segments: small ? 110 : 170 } })
+    this.tourStage.resize(this.size.w, this.size.h)
+    return this.tourStage
+  }
 
-  setPlanVisible(v) { this.closeup?.setPlanVisible(v) }
+  /** Per-frame state from the tour controller (single playhead). */
+  setTourFrame(fs) {
+    const prev = this.tourFS
+    this.tourFS = fs
+    if (fs && prev && fs.view !== prev.view && fs.playing && !this.reducedMotion) {
+      this.stage.classList.add('is-fading')
+      clearTimeout(this._fadeTimer)
+      this._fadeTimer = setTimeout(() => this.stage.classList.remove('is-fading'), FADE_MS)
+    }
+    if (fs) this.stage.classList.toggle('is-surface', fs.view === 'surface')
+  }
 
-  get roverSimplified() { return this.closeup ? this.closeup.roverIsSimplified : !this.library?.merReady }
+  get inSurface() { return this.view === 'tour' }
+
+  get roverSimplified() { return this.tourStage ? this.tourStage.roverIsSimplified : !this.library?.merReady }
+
+  setPlanVisible(v) { this.tourStage?.setPlanVisible(v) }
+
+  _siteDir(id) {
+    if (id === 'home' || !id) return new THREE.Vector3(...latLonToUnit(...HOME_LATLON))
+    const m = this.markers.get(id)
+    return m ? m.dir.clone() : new THREE.Vector3(...latLonToUnit(...HOME_LATLON))
+  }
+
+  /** Globe camera for tour beats: slerp between site directions (globe-local). */
+  _tourGlobeCamera(g) {
+    const from = g.from === 'current' ? (this._lastGlobeDir ?? this._siteDir('home')) : this._siteDir(g.from)
+    const to = this._siteDir(g.to)
+    const k = g.k
+    const q = new THREE.Quaternion().setFromUnitVectors(from.clone().normalize(), to.clone().normalize())
+    const dir = from.clone().normalize().applyQuaternion(new THREE.Quaternion().slerp(q, k))
+    const rFar = this.homeDistance
+    const r = g.to === 'home' ? THREE.MathUtils.lerp(1.9, rFar, k) : THREE.MathUtils.lerp(g.from === 'home' ? rFar : 2.4, 1.65, k)
+    this.globeRoot.updateMatrixWorld(true)
+    const world = this.globeRoot.localToWorld(dir.clone())
+    this.camera.position.copy(world.normalize().multiplyScalar(r))
+    this.camera.lookAt(0, 0, 0)
+    this.camera.updateMatrixWorld()
+  }
+
+  _tourFrame(fs) {
+    const stage = this.tourStage
+    let mainCam = this.camera
+    if (fs.view === 'surface' && stage) {
+      stage.apply(fs)
+      mainCam = stage.activeCamera
+      this._projectOverlays()
+      this._projectCallout(stage)
+      this.renderer.render(stage.activeScene, mainCam)
+    } else {
+      if (fs.globe) this._tourGlobeCamera(fs.globe)
+      if (fs.globe && fs.globe.k >= 1) this._lastGlobeDir = this._siteDir(fs.globe.to)
+      for (const m of this.markers.values()) m.button.classList.toggle('is-tour-highlight', !!fs.highlightSites)
+      this.globeRoot.updateMatrixWorld()
+      this._projectOverlays()
+      this._projectCallout(null)
+      this.renderer.render(this.scene, this.camera)
+    }
+    // Neo in his reserved corner.
+    const nv = this.neoView
+    if (nv && fs.neo) {
+      nv.layout(this.size, fs.neo.side)
+      let target
+      const tn = fs.neo.target
+      if (tn === 'viewer' || tn === 'sky') target = nv.targetFromWorld(tn, mainCam, this.size)
+      else if (tn === 'card') target = nv.targetFromScreen(0.7, 0.55, this.size)
+      else if (fs.view === 'surface' && stage) target = nv.targetFromWorld(stage.anchor(tn), mainCam, this.size)
+      else {
+        const m = this.markers.get(tn === 'site' ? fs.mission : tn)
+        target = m ? nv.targetFromWorld(m.anchor.getWorldPosition(new THREE.Vector3()), mainCam, this.size) : nv.targetFromScreen(0, 0, this.size)
+      }
+      nv.update({ ...fs.neo, target })
+      nv.render(this.renderer, this.size)
+      this.cb.onNeoRect?.(nv.rect)
+    }
+  }
 
   /** Active callout: {text, anchor} or null. */
   setCallout(cue) {
+    if (cue === this.calloutCue || (cue && this.calloutCue && cue.text === this.calloutCue.text && cue.anchor === this.calloutCue.anchor)) return
     this.calloutCue = cue
     if (this.callout) this.callout.textContent = cue ? cue.text : ''
     if (!cue) this._setCalloutMode(null)
@@ -585,16 +645,23 @@ export class GlobeRenderer {
     this.cb.onCalloutMode?.(mode)
   }
 
-  _projectCallout() {
+  _projectCallout(stage) {
     const cue = this.calloutCue
-    if (!cue || this.view !== 'surface' || !this.closeup) { this._setCalloutMode(cue ? 'fixed' : null); return }
-    const cs = this.closeup
-    const p = cs.anchor(cue.anchor, _v)
+    if (!cue) { this._setCalloutMode(null); return }
+    let p
+    let cam = this.camera
+    if (stage) { p = stage.anchor(cue.anchor, _v); cam = stage.activeCamera }
+    else {
+      const m = this.markers.get(cue.anchor)
+      if (!m) { this._setCalloutMode('fixed'); return }
+      p = m.anchor.getWorldPosition(_v)
+      if (!this._visibleAt(p.clone())) { this._setCalloutMode('fixed'); return }
+    }
     const { w, h } = this.size
-    _c.copy(p).applyMatrix4(cs.camera.matrixWorldInverse)
-    const behind = _c.z > -cs.camera.near
-    _p.copy(p).project(cs.camera)
-    const off = behind || Math.abs(_p.x) > 1 || Math.abs(_p.y) > 1 || cs.occluded(p)
+    _c.copy(p).applyMatrix4(cam.matrixWorldInverse)
+    const behind = _c.z > -cam.near
+    _p.copy(p).project(cam)
+    const off = behind || Math.abs(_p.x) > 1 || Math.abs(_p.y) > 1 || (stage && stage.occluded(p))
     if (off || w < 600) { this._setCalloutMode('fixed'); return }
     const el = this.callout
     const cw = el.offsetWidth || 180
@@ -603,11 +670,18 @@ export class GlobeRenderer {
     let y = (1 - _p.y) * 0.5 * h - ch - 14
     x = Math.min(Math.max(8, x), w - cw - 8)
     y = Math.min(Math.max(8, y), h - ch - 8)
-    // Never cover the rover: fall back to the fixed caption region below the canvas.
-    const rv = cs.roverScreen(this.size)
-    const nx = Math.max(x, Math.min(rv.x, x + cw))
-    const ny = Math.max(y, Math.min(rv.y, y + ch))
-    if ((nx - rv.x) ** 2 + (ny - rv.y) ** 2 < rv.r * rv.r * 0.8) { this._setCalloutMode('fixed'); return }
+    const overlaps = (r) => x < r.x + r.w && x + cw > r.x && y < r.y + r.h && y + ch > r.y
+    // Never cover the rover, the clue itself, or Neo: use the caption region instead.
+    if (stage) {
+      const rv = stage.roverScreen(this.size)
+      const nx = Math.max(x, Math.min(rv.x, x + cw))
+      const ny = Math.max(y, Math.min(rv.y, y + ch))
+      if ((nx - rv.x) ** 2 + (ny - rv.y) ** 2 < rv.r * rv.r * 0.8) { this._setCalloutMode('fixed'); return }
+    }
+    const ax = (_p.x + 1) * 0.5 * w
+    const ay = (1 - _p.y) * 0.5 * h
+    if (overlaps({ x: ax - 12, y: ay - 12, w: 24, h: 24 })) { this._setCalloutMode('fixed'); return }
+    if (this.neoView?.rect?.w && overlaps(this.neoView.rect)) { this._setCalloutMode('fixed'); return }
     el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
     this._setCalloutMode('float')
   }
@@ -640,7 +714,7 @@ export class GlobeRenderer {
   _projectOverlays() {
     for (const m of this.markers.values()) {
       m.anchor.getWorldPosition(_v)
-      const show = this.view === 'globe' && !this.markersSuppressed && this._visibleAt(_v)
+      const show = (this.view === 'globe' || (this.view === 'tour' && this.tourFS?.view === 'globe')) && !this.markersSuppressed && this._visibleAt(_v)
       if (show) {
         const [x, y] = this._toStage()
         m.x = x; m.y = y
@@ -678,6 +752,11 @@ export class GlobeRenderer {
       if (pointers.size > 1) multi = true
     })
     canvas.addEventListener('pointermove', (e) => {
+      if (this.view === 'tour' && this.tourFS?.inspect && pointers.has(e.pointerId)) {
+        const p0 = pointers.get(e.pointerId)
+        this.cb.onInspectDrag?.((e.clientX - (p0.lx ?? p0.x)) / this.size.w, (e.clientY - (p0.ly ?? p0.y)) / this.size.h)
+        p0.lx = e.clientX; p0.ly = e.clientY
+      }
       const p = pointers.get(e.pointerId)
       if (p) p.moved = Math.max(p.moved, Math.hypot(e.clientX - p.x, e.clientY - p.y))
     })
@@ -804,11 +883,8 @@ export class GlobeRenderer {
     const dt = Math.min(Math.max((now - this.lastFrame) / 1000, 0), 0.1)
     this.lastFrame = now
     this.cb.onFrame?.(dt)
-    if (this.view === 'surface' && this.closeup) {
-      this.closeup.apply(this.playhead, { playing: this.playing })
-      this._projectOverlays()
-      this._projectCallout()
-      this.renderer.render(this.closeup.scene, this.closeup.camera)
+    if (this.view === 'tour') {
+      if (this.tourFS) this._tourFrame(this.tourFS)
       return
     }
     if (this._idleEligible(now)) this.globeRoot.rotation.y += IDLE_SPEED * dt
@@ -816,7 +892,7 @@ export class GlobeRenderer {
     this.globeRoot.updateMatrixWorld()
     this.camera.updateMatrixWorld()
     this._projectOverlays()
-    this._projectCallout()
+    this._projectCallout(null)
     this.renderer.render(this.scene, this.camera)
   }
 }

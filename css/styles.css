@@ -441,3 +441,84 @@ h1 { margin: 0; font-size: clamp(1.25rem, 2.4vw, 1.7rem); letter-spacing: 0.01em
 .globe-stage.is-surface .surface-badge { display: block; }
 .globe-stage.is-surface .globe-status { display: none; }
 .site-footer .build { margin-bottom: 4px; color: var(--accent); }
+
+/* ======================================================================
+   Version 3: Neo's guided expedition
+   ====================================================================== */
+
+/* Entry: Explore with Neo (primary) and Explore the globe (secondary) */
+.entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; align-items: start; padding: 12px 14px; border: 1px solid rgba(86, 217, 255, 0.35); border-radius: 12px; background: linear-gradient(180deg, rgba(22, 44, 66, 0.55), rgba(12, 18, 28, 0.55)); }
+.entry-primary { display: grid; gap: 6px; }
+.btn-hero { min-height: 52px; padding: 10px 22px; font-size: 1.08rem; font-weight: 700; justify-self: start; }
+.btn-primary.btn-hero { background: linear-gradient(180deg, #2a86b6, #1a5f86); border-color: #7fe3ff; box-shadow: 0 0 18px rgba(86, 217, 255, 0.25); }
+.entry-desc { margin: 0; color: var(--text); font-size: 0.92rem; max-width: 60ch; }
+.btn-secondary { min-height: 44px; align-self: start; }
+@media (max-width: 640px) { .entry { grid-template-columns: 1fr; } .btn-hero { width: 100%; } .btn-secondary { width: 100%; } }
+
+/* Tour strip */
+.tour { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(180deg, rgba(20, 26, 38, 0.96), rgba(12, 15, 22, 0.96)); animation: rise 280ms var(--ease); }
+.tour-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.tour-title { margin: 0; font-size: 1.05rem; }
+.tour-chapter { margin: 2px 0 0; color: var(--accent); font-size: 0.85rem; letter-spacing: 0.04em; }
+.tour-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.tour-stop { margin: 0; font-size: 0.85rem; color: var(--text-dim); }
+.tour-caption { padding: 10px 12px; border-left: 3px solid var(--accent); background: rgba(86, 217, 255, 0.06); border-radius: 0 8px 8px 0; display: grid; gap: 4px; }
+.tour-speaker { margin: 0; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.tour-line { margin: 0; font-size: 1.02rem; line-height: 1.45; min-height: 2.9em; }
+.tour-label { margin: 0; font-size: 0.85rem; color: #ffe2b0; min-height: 1.2em; }
+.tour-label .cite, .tour-label a { font-size: 0.75rem; }
+.tour.label-floating .tour-label-text { visibility: hidden; }
+.tour-sources { font-size: 0.82rem; color: var(--text-dim); }
+.tour-sources summary { cursor: pointer; }
+.tour-sources ul { margin: 4px 0 0; padding-left: 1.1rem; }
+.tour-error { padding: 8px 12px; border: 1px solid var(--error); border-radius: 8px; color: #ffc2ba; }
+.tour-inspect-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.tour-inspect-row:not(:has(:not([hidden]))) { display: none; }
+.btn-inspect { border-color: var(--plan); background: #3a2a0d; font-weight: 650; animation: nudge 1.2s ease-out 2; }
+@keyframes nudge { 30% { box-shadow: 0 0 0 4px rgba(255, 195, 92, 0.35); } 100% { box-shadow: none; } }
+.tour-progress { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.tour-progress-fill { display: block; height: 100%; width: 0; background: var(--accent); }
+.tour-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tour-controls #tour-listen[aria-pressed="true"] { border-color: var(--ok); }
+.tour-plan-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.tour-plan-row:not(:has(:not([hidden]))) { display: none; }
+.tour-plan-row .note { margin: 0; }
+.tour-end { padding: 14px; border-radius: 10px; border: 1px solid var(--accent); background: rgba(86, 217, 255, 0.08); animation: rise 280ms var(--ease); }
+.tour-end h3 { margin: 0 0 10px; font-size: 1.05rem; }
+.tour-end-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.tour-skipped { font-size: 0.8rem; color: var(--text-dim); }
+.tour-skipped ul { margin: 4px 0 0; padding-left: 1.1rem; }
+.tour-still { margin: 0; max-width: 420px; }
+.tour-still img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.tour-still-ph { display: grid; place-items: center; aspect-ratio: 4 / 3; border: 1px dashed var(--line); border-radius: 8px; color: var(--text-dim); }
+.tour-still figcaption { font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; }
+.tour-neo-still { display: flex; gap: 12px; align-items: center; }
+.tour-neo-still p { margin: 0; font-size: 0.85rem; color: var(--text-dim); }
+.neo-crop { flex: none; width: 84px; height: 108px; border-radius: 10px; background: #fff url("../Neospritesheet2.jpeg") no-repeat; background-size: 336px auto; background-position: -10px -14px; }
+
+/* Stage overlays during the tour */
+.tour-banner { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); margin: 0; max-width: calc(100% - 24px); padding: 5px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 650; background: rgba(10, 13, 19, 0.85); border: 1px solid var(--plan); color: #ffe7bd; pointer-events: none; text-align: center; }
+.tour-cards { position: absolute; right: 10px; top: 48px; display: grid; gap: 8px; width: min(300px, 46%); pointer-events: none; }
+.tour-card { pointer-events: auto; padding: 10px 12px; border-radius: 10px; background: rgba(8, 12, 18, 0.9); border: 1px solid var(--line); animation: rise 300ms var(--ease); }
+.tour-card h3 { margin: 0 0 4px; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
+.tour-card .card-text { margin: 0; font-size: 0.92rem; }
+.tour-card.is-date .card-text { font-size: 1.15rem; font-weight: 700; color: #eaf9ff; }
+.tour-card .card-src { margin: 4px 0 0; font-size: 0.72rem; color: var(--text-dim); }
+.cmp { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cmp li { display: grid; gap: 2px; }
+.cmp-name { font-size: 0.82rem; }
+.cmp-track { display: block; height: 10px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.cmp-fill { display: block; height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--accent) 0 6px, #3fb9df 6px 8px); transition: width 1200ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.cmp-val { font-size: 0.82rem; color: var(--text-dim); }
+.neo-tag { position: absolute; left: 0; top: 0; margin: 0; font-size: 0.68rem; text-align: center; color: #cfe9ff; pointer-events: none; text-shadow: 0 1px 2px #000; }
+.poi.is-tour-highlight .poi-ring::before { border-color: var(--plan); animation-duration: 1.4s; }
+.poi.is-tour-highlight .poi-dot { background: var(--plan); }
+@media (max-width: 600px) {
+  .tour-cards { left: 10px; right: auto; top: 70px; width: auto; max-width: 64%; }
+  .tour-banner { font-size: 0.72rem; top: 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour, .tour-end, .tour-card { animation: none; }
+  .cmp-fill { transition: none; }
+  .btn-inspect { animation: none; }
+}
