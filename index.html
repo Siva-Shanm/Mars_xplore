@@ -6,17 +6,29 @@
   <title>Mars Rover Interactive Globe</title>
   <meta name="description" content="Orbit Mars and explore the landing sites, journeys and discoveries of Mars Pathfinder & Sojourner, Spirit, and Opportunity, with NASA sources.">
   <meta name="color-scheme" content="dark">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=2">
   <script type="importmap">
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-      "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.13.0/index.js"
+      "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.13.0/index.js",
+      "./js/main.js": "./js/main.js?v=2",
+      "./js/GlobeRenderer.js": "./js/GlobeRenderer.js?v=2",
+      "./js/CameraFlight.js": "./js/CameraFlight.js?v=2",
+      "./js/TraverseRenderer.js": "./js/TraverseRenderer.js?v=2",
+      "./js/geography.js": "./js/geography.js?v=2",
+      "./js/validate.js": "./js/validate.js?v=2",
+      "./js/MissionPanel.js": "./js/MissionPanel.js?v=2",
+      "./js/replays.js": "./js/replays.js?v=2",
+      "./js/ReplayController.js": "./js/ReplayController.js?v=2",
+      "./js/RoverModels.js": "./js/RoverModels.js?v=2",
+      "./js/SurfaceScene.js": "./js/SurfaceScene.js?v=2",
+      "./js/EvidenceView.js": "./js/EvidenceView.js?v=2"
     }
   }
   </script>
-  <script type="module" src="./js/main.js"></script>
+  <script type="module" src="./js/main.js?v=2"></script>
 </head>
 <body>
   <a class="skip-link" href="#mission-nav">Skip to mission list</a>
@@ -127,6 +139,7 @@
   <div id="announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
   <footer class="site-footer">
+    <p class="build">Version 2 · rover journey replays</p>
     <p>Mission facts from NASA. Landing markers use published coordinates at globe scale; journeys are schematic unless marked as sourced. Educational prototype.</p>
   </footer>
 </body>

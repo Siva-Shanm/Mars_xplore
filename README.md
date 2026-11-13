@@ -14,6 +14,8 @@ On Windows use `py -m http.server 8000`. Then open <http://localhost:8000/>. Alw
 
 Runtime dependencies come from jsDelivr through the import map in `index.html` (`three@0.180.0` and `gsap@3.13.0`). Everything else is local.
 
+**Updating a running copy:** browsers cache JavaScript from simple static servers. `index.html` therefore loads every local module and the stylesheet with a version tag (`?v=2`, applied to all local modules through the import map). When you change any file in `js/` or `css/`, bump that number everywhere it appears in `index.html`, and update the "Version" line in the footer. To check which version a browser is running, read the footer line, for example "Version 2 · rover journey replays".
+
 ## Structure
 
 ```text
