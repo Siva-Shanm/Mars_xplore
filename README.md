@@ -1,6 +1,6 @@
 # Mars Rover Interactive Globe
 
-A static, no-build educational site for the NASA Space Apps Hackathon. Visitors can orbit a 3D Mars and open the landing sites of **Mars Pathfinder & Sojourner**, **Spirit**, and **Opportunity**. Each site shows dates, distances, discoveries, imagery, a journey schematic, and NASA source links. Visitors can also **watch each rover's journey** in an illustrative surface close-up, step through Pathfinder's landing, compare odometers, and explore the evidence for ancient water. It is built from `Mars Rover Interactive Globe - PRD v0.2.md` plus the replay upgrade brief, which supersedes the PRD's earlier limits on rover models, close-ups and playback.
+A static, no-build educational site for the NASA Space Apps Hackathon. Visitors can orbit a 3D Mars and open the landing sites of **Mars Pathfinder & Sojourner**, **Spirit**, and **Opportunity**. Each site shows dates, distances, discoveries, imagery, a journey schematic, and NASA source links. Version 3 adds **Neo’s guided expedition**: one press of **Explore with Neo** starts a narrated, cue-driven tour across all three missions with a fully 3D, procedurally built guide robot. It is built from `Mars Rover Interactive Globe - PRD v0.2.md`, `Neo Narration Script.md` and the Neo upgrade brief, which supersede the PRD's earlier limits on rover models, close-ups and playback.
 
 ## Run locally
 
@@ -14,7 +14,7 @@ On Windows use `py -m http.server 8000`. Then open <http://localhost:8000/>. Alw
 
 Runtime dependencies come from jsDelivr through the import map in `index.html` (`three@0.180.0` and `gsap@3.13.0`). Everything else is local.
 
-**Updating a running copy:** browsers cache JavaScript from simple static servers. `index.html` therefore loads every local module and the stylesheet with a version tag (`?v=2`, applied to all local modules through the import map). When you change any file in `js/` or `css/`, bump that number everywhere it appears in `index.html`, and update the "Version" line in the footer. To check which version a browser is running, read the footer line, for example "Version 2 · rover journey replays".
+**Updating a running copy:** browsers cache JavaScript from simple static servers. `index.html` therefore loads every local module and the stylesheet with a version tag (`?v=3`, applied to all local modules through the import map). When you change any file in `js/` or `css/`, bump that number everywhere it appears in `index.html`, and update the "Version" line in the footer. To check which version a browser is running, read the footer line, for example "Version 3 · Neo’s guided expedition".
 
 ## Structure
 
@@ -29,16 +29,23 @@ js/MissionPanel.js      safe DOM rendering (textContent), credits, journey steps
 js/GlobeRenderer.js     renderer, OrbitControls, model lifecycle, marker projection, picking
 js/CameraFlight.js      single cancellable GSAP slerp flight
 js/TraverseRenderer.js  schematic journeys + validated sourcePolyline renderer
-js/replays.js           pure replay definitions (stops, cues, chips from data) + the single PlaybackClock
-js/ReplayController.js  replay controls, timeline, scrubber, captions (works without WebGL)
+js/replays.js           the single PlaybackClock and timing helpers (pure)
+js/tour.js              tour.json → chapter timelines, approval gates, data-resolved labels (pure)
+js/TourController.js    one authoritative playhead: auto-advance, controls, captions, cards, speech hold, HTML fallback
+js/Narrator.js          opt-in browser speech synthesis (never required, never waited on)
+js/NeoCharacter.js      Neo: procedural 3D model, rig, CanvasTexture expressions, deterministic actions
+js/NeoView.js           Neo in a reserved corner of the same renderer (scissored viewport)
+js/TourStage.js         illustrative local stages for the three chapters, science visuals, endings
 js/RoverModels.js       MER GLB loader/validator/wheel rig + procedural Sojourner, lander, MER fallback
-js/SurfaceScene.js      illustrative close-up: terrain, arc-length routes, follow camera, route reveal
 js/EvidenceView.js      "Evidence for ancient water" tab view
-data/rovers.json        PRD §5 seed, copied verbatim, plus an `evidence` array
+data/rovers.json        PRD §5 seed, plus `evidence` cards and sourced `ending` facts
+data/tour.json          cue presentation metadata: verbatim script lines, timing, shots, Neo actions, gates
 data/assets.json        model registration + rover image manifest
 tests/geography.test.mjs  dev-only unit tests incl. synthetic seam-crossing line
-tests/replays.test.mjs    dev-only unit tests for the clock, keyframes and data-derived captions
+tests/replays.test.mjs    dev-only unit tests for the clock and keyframes
+tests/tour.test.mjs       dev-only: script lines verbatim, gates, timelines, data-resolved labels
 Mars3dmodel.glb, Spirit&Opportunity3dmodel.glb, *.jpeg, 24883_MER_static.usdz   supplied assets, original paths and names
+Neospritesheet1.jpeg, Neospritesheet2.jpeg   Neo design references (not loaded at runtime, except a cropped still in the no-WebGL text guide)
 ```
 
 ## Asset inventory and manifest
@@ -90,36 +97,68 @@ Results from the MER loader's validation report, which `?debug` exposes as `wind
   - Missing textures: the model is kept untextured and the failure is recorded.
 - **Promotion:** the validated model replaces the fallback only at a stable point (paused, ended, or before playback starts). Replay progress, focus and selection are kept.
 
-## Replays (upgrade)
+## Neo’s guided expedition (version 3)
 
-**Watch rover journey** in the mission panel is the primary action. The camera flies down to the landing site (GSAP), fades into an illustrative close-up, and plays once the close-up is on screen. Nothing plays on mission selection. **Back to globe** (or Escape) restores the saved camera pose and keeps the mission selected.
+**Explore with Neo** is the primary entry action: 52 px tall with a primary fill, and the description directly below it is linked with `aria-describedby`. **Explore the globe** remains the secondary action. Each mission's panel offers **Watch with Neo** for that chapter alone, and the navigator still opens any mission manually.
 
-- **One clock per replay** (`PlaybackClock`). Everything is a pure function of the playhead:
-  - rover pose: arc-length route sampling, up vector from the surface normal, forward along the tangent
-  - wheel angle, lander state and route reveal
-  - follow camera: a weighted average of past focus positions, so it is damped but deterministic
-  - active stop and caption
+**Flow.** One press plays the intro on the globe (Neo greets, then the camera flies to Ares Vallis) and then the whole Pathfinder & Sojourner chapter, with no required clicks. Each chapter ends on its record, offering **Next rover** and **Explore the globe**. Opportunity's record offers **Finish the expedition**, which plays the closing line on the globe and highlights all three sites.
 
-  Seeking between stops glides the playhead itself. The clock is ticked by the render loop, or by a fallback animation frame when 3D is unavailable.
-- **Controls:** Play/Pause, Replay, Previous/Next stop, a labelled scrubber, and a keyboard-operable stop list. Selecting a stop seeks and pauses. Finishing holds the last frame with Replay available.
-- **Callouts:** one at a time, clamped to the stage. It moves to the fixed caption region below the canvas when it would be occluded, would cover the rover, or the stage is narrower than 600 px.
-- **Pathfinder & Sojourner (24 s):**
-  - Airbag lander descends, first impact, about 15 stylized bounces with "up to 50 ft" and "about 15 bounces" shown at the matching moments, then rolls to rest ("about 1 km from first impact to rest (lander, not a drive)").
-  - Airbags retract, petals open, the 20° ramp deploys, Sojourner rolls down and makes a short illustrative drive.
-  - The lander trace (pale) and the rover track (cyan) are distinct.
-  - Chips for count, max height, displacement and ramp angle seek to their moments; this is the landing step-through.
-- **Spirit (22 s):** landing site → leaving the lander → Bonneville Crater stop → Columbia Hills. The early plan is a separate dashed toggle with its own figures. The lifetime odometer is a separate chip.
-- **Opportunity (22 s):** landing outcrop inside Eagle Crater → stylized climb → Eagle Crater exit → Endurance Crater. The Eagle–Endurance separation (about 750 m) is distinct from the 45.16 km odometer, and the record is shown as historical.
-- **Not to scale:**
-  - Terrain, crater shapes, hill heights, spacing, speed, bounce heights and timing are presentation choices, labelled "Schematic · not to scale · Illustrative terrain".
-  - No route, speed, slope or crater profile is derived from the mission numbers; caption numbers are read from `data/rovers.json`.
-  - On the globe, rovers sit just south of their markers, enlarged and labelled "Rovers enlarged for visibility · not to scale", and are excluded from picking.
+**Neo.** Neo is built entirely in Three.js from lathe, sphere and torus meshes. There are no image files, rigs or clips at runtime.
+- **References:** proportions come from `Neospritesheet2.jpeg` (front, side, back) and expressions and gestures from `Neospritesheet1.jpeg`.
+- **Local frame:** +Y up, +Z forward, and a 1.0 unit body excluding the antenna. The helmet takes about two fifths of the body, above a narrow neck seam, a tapered capsule torso with a pale lower shell and trim band, deeper-blue chest plates, and a ringed cyan chest light.
+- **Other parts:** a rear inset panel with seams, a thin antenna with a round tip, detached paddle arms (blue shell, pale inner face), an inverted-hull outline for the illustrated look, and a floating gap above a cyan glow ellipse.
+- **Rig:** root → glow + float (hover) → yaw → lean → torso, head pivot, and arm pivots at the shoulder edges.
+- **Pose:** composed once per frame from a single pose object, so animations never fight over a property.
+- **Face:** expressions are drawn on one CanvasTexture on the curved visor and redrawn only when the expression, mouth shape or blink changes. They are smile, neutral, speaking (three mouth shapes), surprised, thoughtful, quiet, wink, star eyes, concerned, and a static red error face. The error face is used only when a stage genuinely fails to build.
+- **Actions:** greet, present/point (head first, then the nearest arm, clamped outside the body), inspect (lean and a nod at the explanation), upward gaze, reflect (lowered arms, quiet face) and farewell. Each is a pure function of cue time, so seeking reconstructs the pose. Decorative hover and blink stop on pause, inspection, reduced motion and hidden tabs.
+- **Placement:** Neo renders through the same renderer in a reserved corner (a scissored viewport, restored afterwards), on the side the cue names, so he never covers the rover or clue. He is never in any picked scene.
 
-Other animated features:
+**One playhead.** `TourController` owns a single `PlaybackClock` per chapter.
+- **Derived from it:** camera, Neo, rover pose and wheels, lander state, route reveal, science effects, lighting, captions, labels, cards and the active stop. The render loop ticks it, or a fallback animation-frame loop does when 3D is unavailable.
+- **Speech:** narration is optional browser speech and off until **Listen to Neo** is pressed. A line starts only when forward playback crosses it, so seeking never replays it. Pause, seek, inspection, chapter switch, Back and hidden tabs cancel speech. Resuming restarts only the active line.
+- **Speech hold:** speech can hold a cue at the end of its line for a bounded time (60% of the line plus 4 s). It is never waited on indefinitely.
+- **Silent mode:** without speech, timed captions drive the mouth cycle and the tour.
+- **Controls:** Pause/Resume, Previous/Next stop, Replay chapter, Back to globe, a labelled scrubber, a chapter and stop indicator, Listen/Mute, Replay line, and a keyboard-operable stop list. Seeking pauses at the target.
+- **Inspection:** one inspection button at a time (Inspect pebble, Inspect rock, Inspect outcrop, Look back) holds the playhead and lets the visitor drag the view. Close returns to the same beat and the prior play/pause intent.
 
-- The odometer bars grow from a shared zero, with values always shown as text.
-- A separate SVG graphic shows Pathfinder's first impact to rest, with its own label.
-- An **Evidence for ancient water** tab view separates findings from site-selection reasons, with sources. Selecting a card highlights the related landing site, or seeks the replay stop when that replay is open.
+**Chapters (estimated playhead durations, without speech holds).**
+- **Pathfinder & Sojourner, 2:17 (2:32 with the intro).**
+  - Ares Vallis establishing shot.
+  - Airbag landing: about 15 bounces and up to 50 ft as lander figures; about 1 km from first impact to rest, labelled "lander, not a drive".
+  - Airbags retract, petals open, and the 20° ramp deploys automatically. Sojourner rolls down, with its 1 ft / 23 lb card.
+  - Drive to an illustrated pebble field: an outlined pebble and **Inspect pebble**, then the rounded-edge inference.
+  - A separate magnified-dust illustration, with particles drawn to a magnet.
+  - Dawn tilt with water-ice clouds.
+  - The lander's signal pulses, with records for Sept 27, 1997 and 2.3 billion bits (attributed to the Pathfinder mission). Sojourner is not placed, because its final position is uncertain.
+- **Spirit, 2:04.**
+  - Gusev basin with a dashed shoreline and "Possible ancient lake — hypothesis".
+  - Drive from the lander past Bonneville toward Columbia Hills, with the lifetime odometer card shown separately and the early plan as its own dashed toggle.
+  - A Columbia Hills specimen with alteration veins and **Inspect rock**.
+  - A time cut to *Later in the mission*: wheels settle into soft soil as winter light fades. Last contact (March 22, 2010) and formal closure (May 25, 2011) are separate cards.
+- **Opportunity, 2:02.**
+  - Orbital mineral clue over Meridiani, then descent into Eagle Crater.
+  - The landing outcrop as an approved fallback beat (no spheres; shared MER conclusion card) with **Inspect outcrop**.
+  - Climb out with **Look back**, then onward toward Endurance, with "about 750 m apart (separation, not distance driven)".
+  - Odometer comparison: 7.73 km vs 45.16 km on one linear baseline, numbers always visible, and the historical record card.
+  - A time cut to Perseverance Valley, where an illustrated dust storm dims the sun: final transmission June 10, 2018.
+- **Closing, 0:22:** back to the globe, all three sites highlighted, and Neo waves.
+
+**Source gates.** All four optional cues are pending, so their fallbacks play. The visitor can see the list under "Beats awaiting source approval", and the console logs it.
+
+| Cue | Status | Fallback used |
+| --- | --- | --- |
+| `pf-record` (Chimp) | pending: panorama and annotation not approved, and no panorama asset | Cue skipped; the lander and final-transmission record are held; no precise rover placement |
+| `sp-troy` | pending: JPL Troy and closure pages are outside the PRD allowlist | Cue skipped; `sp-final` keeps "Soft soil stopped Spirit’s drive." |
+| `op-outcrop` (spherules) | pending | Spoken line and spheres skipped; outcrop beat with the shared MER conclusion card |
+| `op-image` (last image) | pending, and no image asset | Cue skipped; the illustrated valley and date are held |
+
+To enable a gate, set it to `true` under `approvals` in `data/tour.json`; `op-image` also needs its asset. Durations and stop indices are recomputed after filtering.
+
+**Script wording to confirm.** `op-meridiani` says "observations **from orbit**". The allowlisted MER page supports that mineral deposits suggested a wet history, but I did not find the orbital wording on the allowlisted pages.
+
+**Data.** Spoken lines live verbatim in `data/tour.json`, which a unit test checks against the script. Every number on screen is resolved from `data/rovers.json` by key. New sourced records were added from the allowlisted Spirit and Opportunity pages:
+- Spirit: Columbia Hills rocks altered by water.
+- Ending facts: Spirit stuck in soft soil, and its panels could not be tilted toward the winter Sun; Opportunity in Perseverance Valley during the Mars-wide dust storm.
 
 ## Model registration (verified)
 
@@ -177,34 +216,50 @@ I ran an automated Playwright pass in headless Chromium with SwiftShader WebGL, 
 
 `node tests/geography.test.mjs` passes, including a 179°E → 179°W seam-crossing line and antipode rejection.
 
-### Upgrade QA (replays)
+### Version 3 QA (Neo’s expedition)
 
-An automated Playwright pass in headless Chromium with SwiftShader **passed 59 of 59** checks:
+Exercised with Playwright in headless Chromium (SwiftShader software WebGL), served by `python3 -m http.server` and under a GitHub Pages-style `/Mars_xplore/` subpath. A fake speech engine was installed so speech behaviour could be checked without audio. **Results: 52 of 52 Neo checks passed (run in batches; the only failures seen were test-harness bugs, fixed in the tests, not the site), and the original 29-check globe suite still passes.**
 
-- **Model:** the GLB loads at its real path and every validation check passes.
-- **Replays:** all three rovers visibly move with spinning wheels. Stop seeking pauses on the right stop and caption. Scrubbing is deterministic and pauses playback. The final frame holds. Schematic labels and NASA source links stay visible. Back to globe restores the pose, keeps the selection and focuses Watch.
-- **Captions:** Pathfinder's 50 ft, 15 bounces, 1 km lander and 20° ramp captions appear at the matching moments. Spirit's plan toggle is separate.
-- **Interruptions:** rapid switch/watch/back/reset leaves no stuck state. A hidden tab pauses and holds the frame. Resize keeps the playhead. Closing the panel during the fly-down cancels cleanly.
-- **Keyboard:** the timeline, scrubber and evidence tabs all work by keyboard.
-- **Evidence and comparison:** evidence cards are distinguished and highlight their site. The bars grow from zero.
-- **Rover model failures:**
-  - 404, invalid glTF and implausible bounds use the procedural MER.
-  - Corrupt textures keep the model and record the failure.
-  - A missing wheel primitive keeps the model with whole-model motion.
-  - A slow model is promoted only once paused, keeping progress.
-- **Platform failures:**
-  - GSAP blocked: immediate entry, with playback and scrub working.
-  - Three.js blocked: the HTML timeline, captions, stops, evidence and comparison all work.
-  - WebGL lost mid-replay: captions stay, and retry restores the close-up at the same stop and playhead.
-  - Reduced motion: still poses, Play disabled, Next stop immediate. Changing the preference mid-replay pauses playback.
-- **Layout and hosting:** mobile has a fixed caption, touch controls and no overflow. A GitHub Pages-style `/Mars_xplore/` subpath loads both models, the data and the photos with no failed requests.
+- **Baseline:** the globe still orbits, mission selection works, the model and photos load, and there were no failed requests.
+- **Entry:** Explore with Neo is 52 px tall (the secondary button is 44 px) and its description is linked with `aria-describedby`.
+- **Full chapter:** one press played the intro and the whole Pathfinder chapter to its record (Next rover / Explore the globe) with no clicks. Next rover starts Spirit. Opportunity's record offers Finish the expedition, and the outro returns to the globe with all three sites highlighted. There were no page errors.
+- **Neo:**
+  - Rendered in full 3D in a reserved corner and never in a picked scene.
+  - Pose checks at their cues: greet (arm raised, smile), ramp point, pebble inspect (lean, thoughtful), upward gaze at the clouds, reflect (quiet face, lowered arms), farewell wave.
+  - Front, three-quarter, side and rear renders, plus all expressions, were compared against both sheets.
+- **Inspection:** Inspect pebble holds the playhead; dragging orbits the view; closing returns to the same beat and resumes.
+- **Speech (fake engine):**
+  - Each line is spoken once when its cue begins.
+  - Seek, pause, chapter switch and Back each cancel speech, with nothing left lingering.
+  - A hidden tab pauses the tour until the visitor resumes.
+  - A slow voice holds the cue at the line end, then releases (bounded).
+  - A throwing voice and a voice that never starts both fall back to timed captions, and the tour keeps moving.
+- **Reduced motion:** still cue compositions, no hover, and auto-advance continues.
+- **Keyboard:** Enter starts the tour; a stop seek pauses at the target; Space resumes; Escape exits.
+- **Switching:** rapid chapter switching leaves one playhead and one stage. The navigator exits to manual mode, and the panel's Watch with Neo opens that mission's chapter.
+- **Gates and endings:**
+  - All four gates use their fallbacks; the `op-outcrop` fallback shows the shared conclusion card.
+  - Ending cards: Sept 27, 1997, 2.3 billion bits and the uncertainty note; March 22, 2010 and May 25, 2011 as separate cards; June 10, 2018; the 7.73 vs 45.16 km comparison.
+- **Failures:**
+  - Missing MER model: the procedural twin is used.
+  - WebGL lost mid-tour: the HTML tour continues; retry restores the chapter and cue, paused.
+  - Three.js blocked: an HTML tour with the same stops, captions and cards, a local photo, and Neo's cropped still.
+  - GSAP blocked: the tour plays.
+  - Missing photo: an explicit "Image unavailable" state.
+- **Layout:** iPhone 13 has no horizontal overflow, a 109 px Neo corner, a visible description and working touch controls. Rotating to landscape keeps the stop.
+- **Evidence:** the pebble card seeks its tour cue.
+- **Unit tests:** `node tests/tour.test.mjs` passes. It checks that every spoken line is verbatim from the script under the matching cue ID, the gate filtering, contiguous 2–3 minute timelines, and the data-resolved labels. The geography and clock tests also pass.
 
-The original 29-check suite passes again. In one run, its mobile step found the 3D view unavailable (likely WebGL contexts exhausted in the test browser) and the site's fallback correctly disabled globe-only buttons; two re-runs passed 29/29. `node tests/replays.test.mjs` and `node tests/geography.test.mjs` both pass.
+**Observed timings.**
+- **Playhead (silent):** Pathfinder 2:17 (2:32 with the intro), Spirit 2:04, Opportunity 2:02, closing 0:22. With narration on, a cue can extend by up to 60% of its line plus 4 s if the voice runs long.
+- **Wall clock:** in this headless software-rendering environment the 152 s Pathfinder run took 302 s. The frame rate is low and the clock advances at most 0.1 s per frame, so this is an environment limit, not the intended pace. Timing on real hardware is still to be measured.
 
 **Not yet verified** (needs real hardware or a person):
 
 - Frame rate on the demo laptop and phone (targets: 60 / 30 FPS), especially in the close-up. Record device, browser, asset size and FPS here. The MER GLB is 11.9 MB with 12 PNG textures (~10 MB); a compressed derivative would cut load time, but the original is used unchanged here.
-- Real touch-device and screen-reader passes of the replay controls.
+- Real touch-device and screen-reader passes of the tour controls, plus real browser speech voices (only a fake engine was used here).
+- Neo's look on real GPUs and phones: the visual comparison with the sheets was done on software-rendered screenshots.
+- Content approval of the four source gates, and of the "from orbit" wording in `op-meridiani`.
 - Side-by-side feel against the [NASA Mars 3D viewer](https://science.nasa.gov/resource/planet-mars-3d-model/) on mouse and touch.
 - Screen-reader pass and 200 % zoom inspection.
 - Deployed-subpath run with a clean cache.
@@ -214,8 +269,8 @@ The original 29-check suite passes again. In one run, its mobile step found the 
 - **Mouse:** drag to orbit, wheel to zoom, right-drag to pan.
 - **Touch:** one finger to orbit, pinch to zoom, two-finger drag to pan.
 - **Keyboard:** with the globe focused, arrow keys pan and Shift + arrows orbit. The toolbar has Reset, Zoom ±, Pause motion and the surface toggle.
-- **Escape** closes the panel.
-- **Development only:** `?debug` exposes the renderer as `window.__globe`; it was used for the landmark check above.
+- **Escape** closes an inspection, then leaves Neo's tour, then closes the panel.
+- **Development only:** `?debug` exposes `window.__globe`, `window.__guide` and `window.__roverReport` for automated checks.
 
 ## Hosting
 

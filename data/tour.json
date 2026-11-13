@@ -1,0 +1,892 @@
+{
+  "schemaVersion": 1,
+  "about": "Cue presentation metadata for Neo's guided expedition. Spoken lines are copied verbatim from 'Neo Narration Script.md'. Historical numbers shown on screen are resolved from data/rovers.json by label keys. Timing (lead, hold, rover segments) is presentation only.",
+  "approvals": {
+    "pfRecord": false,
+    "spTroy": false,
+    "opOutcrop": false,
+    "opImage": false
+  },
+  "approvalNotes": {
+    "pfRecord": "NASA landing-site panorama and Chimp annotation not approved; no panorama asset in repository.",
+    "spTroy": "Troy name and wheel-trench record not approved (JPL sources outside the PRD allowlist).",
+    "opOutcrop": "Hematite-rich spherule visual and line not approved.",
+    "opImage": "Opportunity's final NASA image not approved and no image asset in repository."
+  },
+  "wordsPerSecond": 2.5,
+  "chapters": [
+    {
+      "id": "pf",
+      "mission": "sojourner",
+      "title": "Pathfinder & Sojourner",
+      "next": "sp"
+    },
+    {
+      "id": "sp",
+      "mission": "spirit",
+      "title": "Spirit",
+      "next": "op"
+    },
+    {
+      "id": "op",
+      "mission": "opportunity",
+      "title": "Opportunity",
+      "next": "outro"
+    },
+    {
+      "id": "outro",
+      "mission": null,
+      "title": "Closing",
+      "next": null
+    }
+  ],
+  "cues": [
+    {
+      "id": "intro",
+      "chapter": "pf",
+      "introOnly": true,
+      "title": "Meet Neo",
+      "text": "I’m Neo. I visit the machines NASA left on Mars. Their radios have gone quiet, but Earth still has what they sent back. Come look with me.",
+      "lead": 1.0,
+      "hold": 2.5,
+      "view": "globe",
+      "globe": {
+        "from": "home",
+        "to": "sojourner",
+        "flyStart": 9.5
+      },
+      "neo": {
+        "action": "greet",
+        "target": "site",
+        "expr": "smile",
+        "side": "right"
+      },
+      "sourceIds": [
+        "pathfinder",
+        "spirit",
+        "opportunity"
+      ]
+    },
+    {
+      "id": "pf-arrival",
+      "chapter": "pf",
+      "title": "Ares Vallis",
+      "text": "Our first stop is Ares Vallis, a rocky plain shaped by ancient floods. Pathfinder landed here on July 4, 1997. Watch what happens when it touches down.",
+      "lead": 3.0,
+      "hold": 2.0,
+      "shot": "establish",
+      "banner": "Ares Vallis · Mission replay",
+      "neo": {
+        "action": "present",
+        "target": "site",
+        "expr": "smile",
+        "side": "right"
+      },
+      "labels": [
+        {
+          "at": 2.0,
+          "text": "Ares Vallis",
+          "anchor": "site",
+          "sourceIds": [
+            "pathfinder"
+          ]
+        }
+      ],
+      "sourceIds": [
+        "pathfinder"
+      ]
+    },
+    {
+      "id": "pf-bounce",
+      "chapter": "pf",
+      "title": "Airbag landing",
+      "text": "Those airbags cushioned Pathfinder’s landing. It bounced about fifteen times, some as high as fifty feet. It came to rest about a kilometer from where it first hit.",
+      "lead": 1.5,
+      "hold": 4.0,
+      "shot": "followLander",
+      "neo": {
+        "action": "track",
+        "target": "lander",
+        "expr": "smile",
+        "accent": {
+          "expr": "surprised",
+          "until": 1.6
+        },
+        "side": "right"
+      },
+      "labels": [
+        {
+          "at": 1.8,
+          "key": "pfMaxHeight",
+          "anchor": "lander"
+        },
+        {
+          "at": 6.0,
+          "key": "pfBounceCount",
+          "anchor": "lander"
+        },
+        {
+          "at": 12.8,
+          "key": "pfDisplacement",
+          "anchor": "lander"
+        }
+      ],
+      "sourceIds": [
+        "pathfinder"
+      ]
+    },
+    {
+      "id": "pf-ramp",
+      "chapter": "pf",
+      "title": "Ramp and Sojourner",
+      "text": "Here comes Sojourner. It stood about one foot tall. Watch its wheels as it comes down the ramp.",
+      "lead": 6.0,
+      "hold": 3.5,
+      "shot": "ramp",
+      "neo": {
+        "action": "pointHold",
+        "target": "ramp",
+        "expr": "smile",
+        "accent": {
+          "expr": "surprised",
+          "until": 1.2
+        },
+        "side": "left",
+        "followAfter": 6.0,
+        "followTarget": "rover"
+      },
+      "labels": [
+        {
+          "at": 4.4,
+          "key": "pfRamp",
+          "anchor": "ramp"
+        }
+      ],
+      "cards": [
+        {
+          "at": 6.5,
+          "key": "sojournerSize"
+        }
+      ],
+      "still": {
+        "mission": "sojourner",
+        "index": 0
+      },
+      "sourceIds": [
+        "pathfinder"
+      ]
+    },
+    {
+      "id": "pf-pebble-look",
+      "chapter": "pf",
+      "title": "A pebble",
+      "text": "See that pebble? Look at its edges.",
+      "lead": 9.0,
+      "hold": 3.5,
+      "shot": "driveToPebble",
+      "rover": [
+        {
+          "from": 2,
+          "to": 3,
+          "start": 0.4,
+          "end": 7.2
+        }
+      ],
+      "emphasis": {
+        "target": "pebble",
+        "at": 8.0
+      },
+      "neo": {
+        "action": "inspect",
+        "target": "pebble",
+        "expr": "thoughtful",
+        "side": "left"
+      },
+      "labels": [
+        {
+          "at": 8.2,
+          "text": "Illustrated pebble",
+          "anchor": "pebble"
+        }
+      ],
+      "inspect": {
+        "label": "Inspect pebble",
+        "target": "pebble",
+        "at": 8.0
+      },
+      "sourceIds": [
+        "pathfinder"
+      ]
+    },
+    {
+      "id": "pf-pebble-reveal",
+      "chapter": "pf",
+      "title": "Rounded edges",
+      "text": "See how smooth those edges are? Those rounded pebbles helped scientists infer that water once flowed here.",
+      "lead": 2.0,
+      "hold": 4.5,
+      "shot": "pebble",
+      "emphasis": {
+        "target": "pebble",
+        "at": 0
+      },
+      "neo": {
+        "action": "inspect",
+        "target": "pebble",
+        "expr": "thoughtful",
+        "side": "left",
+        "nodAt": 5.0
+      },
+      "labels": [
+        {
+          "at": 2.0,
+          "key": "pfPebbleInference",
+          "anchor": "pebble"
+        }
+      ],
+      "inspect": {
+        "label": "Inspect pebble",
+        "target": "pebble",
+        "at": 0
+      },
+      "sourceIds": [
+        "pathfinder"
+      ]
+    },
+    {
+      "id": "pf-dust",
+      "chapter": "pf",
+      "title": "Magnetic dust",
+      "text": "Some of the dust floating in the Martian air was magnetic. Watch what happens in this illustration.",
+      "lead": 6.0,
+      "hold": 5.0,
+      "shot": "dust",
+      "cutAt": 4.5,
+      "rover": [
+        {
+          "from": 3,
+          "to": 4,
+          "start": 0.2,
+          "end": 3.2
+        }
+      ],
+      "neo": {
+        "action": "pointHold",
+        "target": "dustSample",
+        "expr": "smile",
+        "accent": {
+          "expr": "surprised",
+          "until": 5.6
+        },
+        "accentFrom": 4.5,
+        "side": "left"
+      },
+      "labels": [
+        {
+          "at": 4.6,
+          "text": "Illustration · magnified airborne dust",
+          "anchor": "dustSample",
+          "sourceIds": [
+            "pathfinder"
+          ]
+        },
+        {
+          "at": 8.5,
+          "key": "pfDustMagnetic",
+          "anchor": "magnet"
+        }
+      ],
+      "banner": "Illustration · not to scale",
+      "sourceIds": [
+        "pathfinder"
+      ]
+    },
+    {
+      "id": "pf-cloud",
+      "chapter": "pf",
+      "title": "Dawn clouds",
+      "text": "The mission also spotted clouds made of water ice early in the morning.",
+      "lead": 4.0,
+      "hold": 4.5,
+      "shot": "dawn",
+      "neo": {
+        "action": "gazeUp",
+        "target": "clouds",
+        "expr": "smile",
+        "accent": {
+          "expr": "star",
+          "until": 4.8
+        },
+        "accentFrom": 3.6,
+        "side": "right"
+      },
+      "labels": [
+        {
+          "at": 3.6,
+          "key": "pfClouds",
+          "anchor": "clouds"
+        }
+      ],
+      "banner": "Illustration · early-morning water-ice clouds",
+      "sourceIds": [
+        "pathfinder"
+      ]
+    },
+    {
+      "id": "pf-final",
+      "chapter": "pf",
+      "title": "Final transmission",
+      "ending": true,
+      "text": "Earth received Pathfinder’s last data on September 27, 1997. By then, the mission had sent Earth 2.3 billion bits of information. The final transmission gives us Sojourner’s last known position. What happened to the rover after contact ended is uncertain.",
+      "lead": 3.0,
+      "hold": 6.0,
+      "shot": "landerFinal",
+      "neo": {
+        "action": "reflect",
+        "target": "lander",
+        "expr": "quiet",
+        "side": "right"
+      },
+      "cards": [
+        {
+          "at": 3.0,
+          "key": "pfFinalDate"
+        },
+        {
+          "at": 9.0,
+          "key": "pfBits"
+        },
+        {
+          "at": 15.5,
+          "key": "pfUncertain"
+        }
+      ],
+      "still": {
+        "mission": "sojourner",
+        "index": 1
+      },
+      "sourceIds": [
+        "pathfinder"
+      ]
+    },
+    {
+      "id": "pf-record",
+      "chapter": "pf",
+      "title": "Last known position",
+      "ending": true,
+      "approval": "pfRecord",
+      "text": "This is where NASA last knew Sojourner was, near a rock nicknamed Chimp.",
+      "lead": 2.0,
+      "hold": 5.0,
+      "shot": "landerFinal",
+      "neo": {
+        "action": "reflect",
+        "target": "lander",
+        "expr": "quiet",
+        "side": "right"
+      },
+      "fallback": "skip",
+      "sourceIds": [
+        "pathfinder"
+      ],
+      "gatedSources": [
+        "pfPanorama"
+      ]
+    },
+    {
+      "id": "sp-gusev",
+      "chapter": "sp",
+      "title": "Gusev Crater",
+      "text": "Why send a robot geologist here? Scientists wondered whether this huge crater once held a lake. Spirit came to look for clues.",
+      "lead": 6.0,
+      "hold": 13.0,
+      "shot": "basin",
+      "globeLead": 4.0,
+      "globe": {
+        "from": "current",
+        "to": "spirit"
+      },
+      "banner": "Gusev Crater · Mission replay",
+      "neo": {
+        "action": "present",
+        "target": "lake",
+        "expr": "smile",
+        "side": "right"
+      },
+      "labels": [
+        {
+          "at": 6.5,
+          "key": "spLakeHypothesis",
+          "anchor": "lake",
+          "until": 17.5
+        }
+      ],
+      "sourceIds": [
+        "mer",
+        "spirit"
+      ]
+    },
+    {
+      "id": "sp-drive",
+      "chapter": "sp",
+      "title": "Bonneville to Columbia Hills",
+      "text": "Spirit visited Bonneville Crater, then headed toward Columbia Hills. The drive you’re watching is one part of the journey. In all, Spirit traveled about 7.7 kilometers.",
+      "lead": 4.0,
+      "hold": 20.0,
+      "shot": "followDrive",
+      "rover": [
+        {
+          "from": 0,
+          "to": 2,
+          "start": 0.5,
+          "end": 9.5
+        },
+        {
+          "from": 2,
+          "to": 4,
+          "start": 12.5,
+          "end": 29.0
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "start": 29.0,
+          "end": 34.5
+        }
+      ],
+      "neo": {
+        "action": "track",
+        "target": "rover",
+        "expr": "smile",
+        "side": "left"
+      },
+      "labels": [
+        {
+          "at": 7.0,
+          "text": "Bonneville Crater",
+          "anchor": "bonneville",
+          "sourceIds": [
+            "spirit",
+            "spiritMap"
+          ]
+        },
+        {
+          "at": 17.0,
+          "text": "Toward Columbia Hills",
+          "anchor": "hills",
+          "sourceIds": [
+            "spirit",
+            "spiritMap"
+          ]
+        }
+      ],
+      "cards": [
+        {
+          "at": 17.5,
+          "key": "spOdometer"
+        }
+      ],
+      "plan": true,
+      "still": {
+        "mission": "spirit",
+        "index": 0
+      },
+      "sourceIds": [
+        "spirit",
+        "spiritMap"
+      ]
+    },
+    {
+      "id": "sp-rock",
+      "chapter": "sp",
+      "title": "Columbia Hills rock",
+      "text": "Some rocks in Columbia Hills showed signs that water had changed them. That was one clue Spirit found by studying the rocks up close.",
+      "lead": 6.0,
+      "hold": 8.5,
+      "shot": "rock",
+      "emphasis": {
+        "target": "specimen",
+        "at": 3.5
+      },
+      "neo": {
+        "action": "inspect",
+        "target": "specimen",
+        "expr": "thoughtful",
+        "side": "left",
+        "nodAt": 5.5
+      },
+      "labels": [
+        {
+          "at": 3.6,
+          "key": "spRockAltered",
+          "anchor": "specimen"
+        }
+      ],
+      "inspect": {
+        "label": "Inspect rock",
+        "target": "specimen",
+        "at": 3.5
+      },
+      "sourceIds": [
+        "spirit"
+      ]
+    },
+    {
+      "id": "sp-final",
+      "chapter": "sp",
+      "title": "Later in the mission",
+      "ending": true,
+      "late": true,
+      "text": "Soft soil stopped Spirit’s drive. As winter approached, its solar panels had less energy to work with. Earth last heard from Spirit on March 22, 2010. NASA kept trying to reach it and closed the mission in May 2011.",
+      "lead": 6.5,
+      "hold": 13.0,
+      "shot": "lateSpirit",
+      "cut": true,
+      "banner": "Later in the mission · illustration",
+      "neo": {
+        "action": "reflect",
+        "target": "rover",
+        "expr": "quiet",
+        "side": "right"
+      },
+      "labels": [
+        {
+          "at": 3.0,
+          "key": "spSoftSoil",
+          "anchor": "wheel"
+        }
+      ],
+      "cards": [
+        {
+          "at": 17.0,
+          "key": "spLastContact"
+        },
+        {
+          "at": 21.5,
+          "key": "spClosure"
+        }
+      ],
+      "sourceIds": [
+        "spirit"
+      ]
+    },
+    {
+      "id": "sp-troy",
+      "chapter": "sp",
+      "title": "Troy",
+      "ending": true,
+      "late": true,
+      "approval": "spTroy",
+      "text": "Even here, Spirit had something to study. Its wheels uncovered layers of soil that scientists could examine.",
+      "lead": 2.0,
+      "hold": 5.0,
+      "shot": "lateSpirit",
+      "neo": {
+        "action": "inspect",
+        "target": "wheel",
+        "expr": "thoughtful",
+        "side": "right"
+      },
+      "replaceIn": {
+        "cue": "sp-final",
+        "from": "Soft soil stopped Spirit’s drive.",
+        "to": "Soft soil stopped Spirit’s drive here at Troy."
+      },
+      "fallback": "skip",
+      "sourceIds": [
+        "spirit"
+      ],
+      "gatedSources": [
+        "jplTroy",
+        "jplClosure"
+      ]
+    },
+    {
+      "id": "op-meridiani",
+      "chapter": "op",
+      "title": "Meridiani Planum",
+      "text": "Before Opportunity landed, observations from orbit had already pointed scientists toward mineral deposits here. They wanted to see what those minerals could tell them about water.",
+      "lead": 6.0,
+      "hold": 12.0,
+      "shot": "orbital",
+      "globeLead": 4.0,
+      "globe": {
+        "from": "current",
+        "to": "opportunity"
+      },
+      "banner": "Meridiani Planum · Mission replay",
+      "neo": {
+        "action": "present",
+        "target": "plains",
+        "expr": "smile",
+        "side": "right"
+      },
+      "labels": [
+        {
+          "at": 6.0,
+          "key": "opMineralClue",
+          "anchor": "plains",
+          "until": 16.5
+        }
+      ],
+      "sourceIds": [
+        "mer",
+        "opportunity"
+      ]
+    },
+    {
+      "id": "op-outcrop",
+      "chapter": "op",
+      "title": "Landing outcrop",
+      "approval": "opOutcrop",
+      "text": "See those tiny spheres? Opportunity studied what they were made of. They helped scientists piece together evidence that this place was once wet.",
+      "lead": 4.0,
+      "hold": 4.5,
+      "shot": "outcrop",
+      "emphasis": {
+        "target": "outcrop",
+        "at": 2.5
+      },
+      "neo": {
+        "action": "inspect",
+        "target": "outcrop",
+        "expr": "thoughtful",
+        "side": "left",
+        "nodAt": 5.0
+      },
+      "inspect": {
+        "label": "Inspect outcrop",
+        "target": "outcrop",
+        "at": 2.5
+      },
+      "fallback": {
+        "title": "Landing outcrop",
+        "lead": 3.0,
+        "hold": 9.0,
+        "labels": [
+          {
+            "at": 2.6,
+            "text": "Landing outcrop, Eagle Crater",
+            "anchor": "outcrop",
+            "sourceIds": [
+              "opportunity",
+              "mer"
+            ]
+          }
+        ],
+        "cards": [
+          {
+            "at": 4.0,
+            "key": "merSharedConclusion"
+          }
+        ],
+        "neo": {
+          "action": "inspect",
+          "target": "outcrop",
+          "expr": "thoughtful",
+          "side": "left"
+        }
+      },
+      "sourceIds": [
+        "opportunity",
+        "mer"
+      ],
+      "gatedSources": [
+        "merHighlights"
+      ]
+    },
+    {
+      "id": "op-eagle",
+      "chapter": "op",
+      "title": "Out of Eagle Crater",
+      "text": "That’s Eagle Crater behind us. See where we started? Opportunity climbed out and headed toward Endurance Crater.",
+      "lead": 3.0,
+      "hold": 19.0,
+      "shot": "climb",
+      "rover": [
+        {
+          "from": 0,
+          "to": 3,
+          "start": 0.5,
+          "end": 11.5
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "start": 13.0,
+          "end": 28.5
+        }
+      ],
+      "neo": {
+        "action": "track",
+        "target": "rover",
+        "expr": "smile",
+        "side": "right"
+      },
+      "labels": [
+        {
+          "at": 11.0,
+          "text": "Eagle Crater exit",
+          "anchor": "eagleExit",
+          "sourceIds": [
+            "opportunity"
+          ]
+        },
+        {
+          "at": 18.0,
+          "key": "opSeparation",
+          "anchor": "endurance"
+        }
+      ],
+      "inspect": {
+        "label": "Look back",
+        "target": "eagleCrater",
+        "at": 9.0
+      },
+      "still": {
+        "mission": "opportunity",
+        "index": 0
+      },
+      "sourceIds": [
+        "opportunity"
+      ]
+    },
+    {
+      "id": "op-distance",
+      "chapter": "op",
+      "title": "Lifetime distances",
+      "text": "You’ve seen one early drive. Over its lifetime, Opportunity traveled just over forty-five kilometers. For a time, that was farther than any rover had driven off Earth.",
+      "lead": 2.0,
+      "hold": 8.0,
+      "shot": "compare",
+      "neo": {
+        "action": "present",
+        "target": "card",
+        "expr": "smile",
+        "side": "left"
+      },
+      "cards": [
+        {
+          "at": 1.0,
+          "key": "compareOdometers"
+        },
+        {
+          "at": 9.0,
+          "key": "opRecord"
+        }
+      ],
+      "sourceIds": [
+        "opportunity",
+        "spirit"
+      ]
+    },
+    {
+      "id": "op-final",
+      "chapter": "op",
+      "title": "Later in the mission",
+      "ending": true,
+      "late": true,
+      "text": "A planet-wide dust storm darkened the sky here in Perseverance Valley. Less sunlight reached Opportunity’s solar panels. On June 10, 2018, Earth received its final transmission.",
+      "lead": 6.0,
+      "hold": 14.0,
+      "shot": "lateOpp",
+      "cut": true,
+      "banner": "Later in the mission · Perseverance Valley · illustration",
+      "neo": {
+        "action": "reflect",
+        "target": "rover",
+        "expr": "quiet",
+        "side": "left"
+      },
+      "labels": [
+        {
+          "at": 3.0,
+          "key": "opStorm",
+          "anchor": "sky"
+        }
+      ],
+      "cards": [
+        {
+          "at": 15.0,
+          "key": "opFinalDate"
+        }
+      ],
+      "sourceIds": [
+        "opportunity"
+      ]
+    },
+    {
+      "id": "op-image",
+      "chapter": "op",
+      "title": "Last image",
+      "ending": true,
+      "late": true,
+      "approval": "opImage",
+      "requiresAsset": "opportunityLastImage",
+      "text": "This incomplete picture was the last data it sent.",
+      "lead": 2.0,
+      "hold": 6.0,
+      "shot": "lateOpp",
+      "neo": {
+        "action": "reflect",
+        "target": "card",
+        "expr": "quiet",
+        "side": "left"
+      },
+      "fallback": "skip",
+      "sourceIds": [
+        "opportunity"
+      ],
+      "gatedSources": [
+        "oppLastImage"
+      ]
+    },
+    {
+      "id": "outro",
+      "chapter": "outro",
+      "title": "Three sites",
+      "text": "Sojourner’s pebbles gave us a clue about flowing water. Spirit and Opportunity found more evidence that water stayed on the surface long ago. Their radios are quiet now. We can still look at what they found.",
+      "lead": 3.0,
+      "hold": 4.0,
+      "view": "globe",
+      "globe": {
+        "from": "current",
+        "to": "home"
+      },
+      "highlightSites": true,
+      "neo": {
+        "action": "farewell",
+        "target": "viewer",
+        "expr": "smile",
+        "side": "right",
+        "farewellAt": 16.0
+      },
+      "sourceIds": [
+        "mer",
+        "pathfinder"
+      ]
+    }
+  ],
+  "gatedSources": {
+    "pfPanorama": {
+      "title": "Mars Pathfinder landing site and surroundings",
+      "url": "https://science.nasa.gov/photojournal/mars-pathfinder-landing-site-and-surroundings/"
+    },
+    "jplTroy": {
+      "title": "NASA/JPL: soil at Troy",
+      "url": "https://www.jpl.nasa.gov/news/nasa-trapped-mars-rover-finds-evidence-of-subsurface-water/"
+    },
+    "jplClosure": {
+      "title": "NASA/JPL: Spirit completes mission",
+      "url": "https://www.jpl.nasa.gov/news/nasas-spirit-rover-completes-mission-on-mars/"
+    },
+    "merHighlights": {
+      "title": "MER science highlights",
+      "url": "https://science.nasa.gov/mission/mars-exploration-rovers-spirit-and-opportunity/science-highlights/"
+    },
+    "oppLastImage": {
+      "title": "Opportunity's last message",
+      "url": "https://science.nasa.gov/resource/opportunitys-last-message/"
+    }
+  }
+}

@@ -183,7 +183,13 @@
             }
           }
         }
-      ]
+      ],
+      "ending": {
+        "text": "Earth received Pathfinder’s last data on September 27, 1997. What happened to Sojourner after contact ended is uncertain.",
+        "sourceIds": [
+          "pathfinder"
+        ]
+      }
     },
     {
       "id": "spirit",
@@ -238,6 +244,12 @@
           "text": "Together, Spirit and Opportunity found evidence that water persisted on the Martian surface in ancient times.",
           "sourceIds": [
             "mer"
+          ]
+        },
+        {
+          "text": "Some rocks in Columbia Hills showed evidence of alteration by water.",
+          "sourceIds": [
+            "spirit"
           ]
         }
       ],
@@ -390,7 +402,13 @@
           ],
           "bounce": null
         }
-      ]
+      ],
+      "ending": {
+        "text": "In 2009 Spirit became stuck in soft soil. Its solar panels could not be tilted toward the winter Sun, and Earth last heard from it on March 22, 2010.",
+        "sourceIds": [
+          "spirit"
+        ]
+      }
     },
     {
       "id": "opportunity",
@@ -529,7 +547,13 @@
           ],
           "bounce": null
         }
-      ]
+      ],
+      "ending": {
+        "text": "Opportunity reached Perseverance Valley in 2018. A Mars-wide dust storm reduced the energy available to its solar panels; the last signal was heard on June 10, 2018.",
+        "sourceIds": [
+          "opportunity"
+        ]
+      }
     }
   ],
   "evidence": [
@@ -541,7 +565,7 @@
       ],
       "title": "Rounded pebbles at Ares Vallis",
       "text": "Rounded pebbles and cobbles at the landing site suggested conglomerates that formed in running water during a warmer past.",
-      "stopId": "drive",
+      "stopId": "pf-pebble-reveal",
       "sourceIds": [
         "pathfinder"
       ]
@@ -554,7 +578,7 @@
       ],
       "title": "Why Gusev Crater",
       "text": "The twin rovers were targeted at sites that looked as though they were affected by liquid water in the past. Gusev Crater was a possible former lake in a giant impact crater.",
-      "stopId": "landing",
+      "stopId": "sp-gusev",
       "sourceIds": [
         "mer"
       ]
@@ -567,7 +591,7 @@
       ],
       "title": "Why Meridiani Planum",
       "text": "Opportunity was sent to Meridiani Planum, a place where mineral deposits suggested that Mars had a wet history.",
-      "stopId": "landing",
+      "stopId": "op-meridiani",
       "sourceIds": [
         "mer"
       ]

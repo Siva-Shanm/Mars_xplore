@@ -4,9 +4,9 @@
 
 import { MissionPanel } from './MissionPanel.js'
 import { validateRovers, validateAssets } from './validate.js'
-import { ReplayController } from './ReplayController.js'
+import { TourController } from './TourController.js'
 import { EvidenceView } from './EvidenceView.js'
-import { buildReplay } from './replays.js'
+import { buildTour } from './tour.js'
 
 const $ = (sel) => document.querySelector(sel)
 const els = {
@@ -25,8 +25,11 @@ const els = {
   btnZoomOut: $('#btn-zoom-out'),
   btnPause: $('#btn-pause'),
   btnSurface: $('#btn-surface'),
-  replay: $('#replay'),
+  tour: $('#tour'),
   evidence: $('#evidence'),
+  btnNeo: $('#btn-neo'),
+  btnFree: $('#btn-free'),
+  overlays: { cards: $('#tour-cards'), banner: $('#tour-banner'), neoTag: $('#neo-tag') },
 }
 
 const reducedMQ = matchMedia('(prefers-reduced-motion: reduce)')
@@ -41,9 +44,9 @@ const state = {
   invoker: null,
   motionPaused: false,
   reducedMotion: reducedMQ.matches,
-  replay: null,
+  guide: null,
+  tourData: null,
   library: null,
-  replayDefs: new Map(),
 }
 
 // ---------------------------------------------------------------- utilities
@@ -89,7 +92,7 @@ async function fetchJson(rel) {
 
 async function loadData() {
   els.dataError.hidden = true
-  const [rovers, assets] = await Promise.allSettled([fetchJson('../data/rovers.json'), fetchJson('../data/assets.json')])
+  const [rovers, assets, tourJson] = await Promise.allSettled([fetchJson('../data/rovers.json'), fetchJson('../data/assets.json'), fetchJson('../data/tour.json')])
   try {
     if (rovers.status === 'rejected') throw rovers.reason
     state.data = validateRovers(rovers.value)
@@ -118,27 +121,37 @@ async function loadData() {
     assets: state.assets,
     onClose: () => closePanel(),
     onJourneyChange: (id, st) => state.globe?.setJourney(id, st),
-    onWatch: (id) => watchJourney(id),
-    canWatch: (id) => state.replayDefs.has(id),
+    onWatch: (id) => watchWithNeo(id),
+    canWatch: (id) => !!chapterFor(id),
   })
-  state.replayDefs.clear()
-  for (const m of state.data.missions) { const def = buildReplay(m); if (def) state.replayDefs.set(m.id, def) }
-  state.replay?.exit({ silent: true })
-  if (state.replay) state.replay.sources = state.data.sources
-  else state.replay = new ReplayController({
-    root: els.replay,
-    sources: state.data.sources,
+  // Neo's tour: cue metadata kept separately from historical mission data.
+  state.guide?.exit({ silent: true })
+  state.tourData = null
+  try {
+    if (tourJson.status === 'rejected') throw tourJson.reason
+    state.tourData = buildTour(tourJson.value, state.data, { assets: {} })
+    for (const sk of state.tourData.skipped) console.info('[tour] optional cue', sk.id, '→', sk.fallback, '·', sk.reason)
+  } catch (err) {
+    console.error('[tour]', err)
+    setStatus('tour', 'Neo’s tour is unavailable · the globe and mission details still work', 'warn')
+  }
+  els.btnNeo.disabled = !state.tourData
+  state.guide = state.tourData ? new TourController({
+    root: els.tour,
+    overlays: els.overlays,
+    tour: state.tourData,
+    data: state.data,
+    assets: state.assets,
     announce,
     getGlobe: () => state.globe,
-    getLibrary: () => state.library,
-    reducedMotion: state.reducedMotion,
-    onStop: () => els.layout.classList.remove('is-replay'),
-    onExit: () => {
-      // Back to globe: the mission stays selected; focus returns to the action that started it.
-      const btn = els.panel.querySelector('#btn-watch')
-      if (btn) btn.focus(); else navButton(state.selectedId)?.focus()
+    onExit: (chapterId, { silent }) => {
+      const mid = state.tourData.chapters.get(chapterId)?.mission
+      if (mid) state.globe?.highlightSite(mid)
+      if (!silent) (els.panel.querySelector('#btn-watch') || els.btnNeo).focus()
     },
-  })
+    onExploreGlobe: () => exploreGlobe(),
+  }) : null
+  if (new URLSearchParams(location.search).has('debug')) window.__guide = state.guide
   new EvidenceView({ root: els.evidence, data: state.data, onShow: showEvidence })
   state.panel.setGlobeAvailable(!!state.globe)
   renderNav()
@@ -172,8 +185,8 @@ const navButton = (id) => els.nav.querySelector(`[data-mission-id="${id}"]`)
 function selectMission(id, trigger, invoker) {
   const mission = state.data?.missions.find((m) => m.id === id)
   if (!mission) return
-  // Only the active mission may drive the scene: leave any other replay first.
-  if (state.replay?.active) state.replay.exit({ silent: true })
+  // Only one playhead: leave Neo's tour before manual selection.
+  if (state.guide?.active) state.guide.exit({ silent: true })
   state.selectedId = id
   state.invoker = invoker || navButton(id)
   for (const b of els.nav.querySelectorAll('.nav-btn')) b.setAttribute('aria-pressed', String(b.dataset.missionId === id))
@@ -187,7 +200,7 @@ function selectMission(id, trigger, invoker) {
 function closePanel() {
   if (!state.panel?.isOpen) return
   const id = state.selectedId
-  state.replay?.exit({ silent: true })
+  state.guide?.exit({ silent: true })
   state.selectedId = null
   state.panel.close()
   state.globe?.cancelFlight()
@@ -201,25 +214,43 @@ function closePanel() {
 
 // ------------------------------------------------------------------ replays
 
-function watchJourney(id) {
-  const mission = state.data?.missions.find((m) => m.id === id)
-  const def = state.replayDefs.get(id)
-  if (!mission || !def) return
-  if (state.selectedId !== id) selectMission(id, 'pointer', navButton(id))
+function chapterFor(missionId) {
+  if (!state.tourData) return null
+  for (const [id, ch] of state.tourData.chapters) if (ch.mission === missionId) return id
+  return null
+}
+
+function watchWithNeo(missionId) {
+  const ch = chapterFor(missionId)
+  if (!ch || !state.guide) return
   state.globe?.cancelFlight()
-  els.layout.classList.add('is-replay')
-  state.replay.start(mission, def)
+  state.guide.start(ch, { withIntro: false })
   els.stage.scrollIntoView({ block: 'start', behavior: state.reducedMotion ? 'auto' : 'smooth' })
+}
+
+function startExpedition() {
+  if (!state.guide) return
+  if (state.panel?.isOpen) closePanel()
+  state.globe?.cancelFlight()
+  state.guide.startExpedition()
+  els.stage.scrollIntoView({ block: 'start', behavior: state.reducedMotion ? 'auto' : 'smooth' })
+}
+
+function exploreGlobe() {
+  if (state.guide?.active) state.guide.exit({ silent: true })
+  els.stage.scrollIntoView({ block: 'start', behavior: state.reducedMotion ? 'auto' : 'smooth' })
+  els.stage.focus({ preventScroll: true })
+  announce('Exploring the globe. Drag to orbit, or choose a mission.')
 }
 
 function showEvidence(card, missionId, { soft = false } = {}) {
   if (!missionId) return
-  if (state.replay?.active && state.replay.missionId === missionId) {
-    if (card.stopId) state.replay.seekStop(card.stopId)
+  if (state.guide?.active) {
+    if (state.guide.missionId === missionId && card.stopId) state.guide.seekCue(card.stopId)
     return
   }
   if (!soft && state.selectedId !== missionId) selectMission(missionId, 'pointer', navButton(missionId))
-  if (!state.replay?.active) state.globe?.highlightSite(missionId)
+  state.globe?.highlightSite(missionId)
 }
 
 // -------------------------------------------------------------------- globe
@@ -258,8 +289,11 @@ function startGlobe() {
       reducedMotion: state.reducedMotion,
       roverLibrary: state.library,
       callbacks: {
-        onFrame: (dt) => state.replay?.tickFromGlobe(dt),
-        onCalloutMode: (mode) => state.replay?.setCalloutMode(mode),
+        onFrame: (dt) => { if (state.guide?.active) state.guide.tickFromGlobe(dt) },
+        onCalloutMode: (mode) => els.tour.classList.toggle('label-floating', mode === 'float'),
+        onInspectDrag: (dx, dy) => state.guide?.inspectDrag(dx, dy),
+        onNeoRect: (r) => { const t = els.overlays.neoTag; t.style.transform = `translate(${r.x}px, ${Math.max(0, r.y - 22)}px)`; t.style.width = `${r.w}px` },
+        onNeoStatus: (s) => { if (s !== 'full') console.warn('[neo] rendering:', s) },
         onSelect: (id, trigger, el) => selectMission(id, trigger, el),
         onStatus: (key, text, level, action) => setStatus(key, text, level, action),
         onMarkerFocusLost: (id) => navButton(id)?.focus(),
@@ -275,9 +309,8 @@ function startGlobe() {
     globe.setMotion({ reducedMotion: state.reducedMotion, paused: state.motionPaused })
     stageMessage(null)
     setGlobeControlsEnabled(true)
-    if (state.replay?.active) {
-      globe.setSelected(state.selectedId)
-      state.replay.resume3D()
+    if (state.guide?.active) {
+      state.guide.resume3D()
     } else if (state.selectedId) {
       globe.setSelected(state.selectedId)
       globe.flyTo(state.selectedId)
@@ -294,7 +327,9 @@ function globeFailed(err, canRetry) {
   els.poi.replaceChildren()
   els.stage.classList.remove('is-surface', 'is-fading')
   // A running replay keeps its playhead and stop; captions continue in the HTML.
-  if (state.replay?.active) { state.replay.setCalloutMode('fixed'); state.replay.refreshModelBadge() }
+  // Neo's tour keeps its chapter, cue and playhead; captions continue as HTML.
+  els.tour.classList.remove('label-floating')
+  els.overlays.cards.replaceChildren()
   setGlobeControlsEnabled(false)
   syncSurfaceButton(null, { modelReady: false })
   setStatus('globe', '3D view unavailable · mission details still work', 'error')
@@ -324,13 +359,12 @@ function applyMotion() {
 reducedMQ.addEventListener('change', (e) => {
   state.reducedMotion = e.matches
   applyMotion()
-  state.replay?.setReducedMotion(e.matches)
 })
 
 // ------------------------------------------------------------------- wiring
 
 els.btnReset.addEventListener('click', () => {
-  if (state.replay?.active) state.replay.exit({ silent: true })
+  if (state.guide?.active) state.guide.exit({ silent: true })
   state.globe?.resetView()
 })
 els.btnZoomIn.addEventListener('click', () => { if (!state.globe?.inSurface) state.globe?.zoom(0.8) })
@@ -341,12 +375,15 @@ els.btnSurface.addEventListener('click', () => {
   if (!g) return
   g.setSurface(g.surface === 'reference' ? 'model' : 'reference')
 })
+els.btnNeo.addEventListener('click', startExpedition)
+els.btnFree.addEventListener('click', exploreGlobe)
 $('#btn-data-retry').addEventListener('click', async () => {
   if (await loadData()) startGlobe()
 })
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return
-  if (state.replay?.active) { e.preventDefault(); state.replay.exit(); return }
+  if (state.guide?.inspect) { e.preventDefault(); state.guide.closeInspect(); return }
+  if (state.guide?.active) { e.preventDefault(); state.guide.exit(); return }
   if (state.panel?.isOpen) { e.preventDefault(); closePanel() }
 })
 
@@ -367,12 +404,11 @@ async function boot() {
   state.globeModule = globeResult.value
   // Rover models: procedural first, the validated supplied model is promoted when ready.
   state.library = new state.globeModule.RoverLibrary({ merConfig: state.assets.roverModels?.mer ?? null })
-  state.library.onReady(() => state.replay?.refreshModelBadge())
   state.library.load().then((ok) => {
     const r = state.library.report
     console.info('[rover] MER model report', JSON.stringify(r))
     if (!ok) setStatus('rover-model', 'Simplified rover model (supplied MER model unavailable)', 'warn')
-    if (new URLSearchParams(location.search).has('debug')) { window.__roverReport = r; window.__replay = state.replay }
+    if (new URLSearchParams(location.search).has('debug')) { window.__roverReport = r; window.__guide = state.guide }
   })
   // The globe stays interactive even if mission data failed; markers arrive on data retry.
   startGlobe()
