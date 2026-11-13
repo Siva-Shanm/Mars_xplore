@@ -60,7 +60,49 @@
         <div id="poi-layer" class="poi-layer"></div>
         <div id="globe-status" class="globe-status" aria-live="polite"></div>
         <div id="stage-message" class="stage-message" hidden></div>
+        <p class="surface-badge">Schematic · not to scale · Illustrative terrain</p>
+        <div class="stage-fade" aria-hidden="true"></div>
       </div>
+
+      <section id="replay" class="replay" aria-labelledby="replay-title" hidden>
+        <div class="replay-head">
+          <h2 id="replay-title" class="replay-title">Journey replay</h2>
+          <div class="replay-badges">
+            <span class="scale-badge">Schematic · not to scale</span>
+            <span class="scale-badge">Illustrative terrain</span>
+            <span id="replay-model" class="scale-badge model-badge"></span>
+          </div>
+        </div>
+        <div id="replay-caption" class="replay-caption">
+          <p id="replay-caption-text" class="replay-caption-text"></p>
+          <p id="replay-caption-src" class="cite"></p>
+        </div>
+        <div class="replay-progress" aria-hidden="true"><span class="replay-progress-fill"></span></div>
+        <div class="replay-controls" role="group" aria-label="Replay controls">
+          <button type="button" id="replay-back" class="btn">← Back to globe</button>
+          <button type="button" id="replay-prev" class="btn">Previous stop</button>
+          <button type="button" id="replay-play" class="btn btn-primary" aria-pressed="false">Play</button>
+          <button type="button" id="replay-next" class="btn">Next stop</button>
+          <button type="button" id="replay-restart" class="btn">Replay</button>
+          <label class="scrub">
+            <span class="scrub-label">Replay position</span>
+            <input type="range" id="replay-scrub" min="0" max="1000" step="1" value="0">
+          </label>
+          <output id="replay-time" class="num replay-time">0:00 / 0:00</output>
+        </div>
+        <p id="replay-motion-note" class="note" hidden>Reduced motion is on: still poses only. Use Previous/Next stop, the stop list, or the scrubber.</p>
+        <p id="replay-seq" class="note"></p>
+        <ol id="replay-stops" class="replay-stops" aria-label="Journey timeline stops"></ol>
+        <div class="replay-chips-wrap">
+          <div id="replay-chips" class="replay-chips"></div>
+          <p id="replay-chips-src" class="cite"></p>
+        </div>
+        <div class="replay-plan-row">
+          <button type="button" id="replay-plan" class="btn btn-plan" aria-pressed="false" hidden>Show early route plan (dashed)</button>
+          <span id="replay-plan-label" class="note"></span>
+        </div>
+        <div id="replay-notes"></div>
+      </section>
 
       <div class="toolbar" role="toolbar" aria-label="Globe controls">
         <button type="button" id="btn-reset" class="btn">Reset view</button>
@@ -74,6 +116,13 @@
 
     <aside id="mission-panel" class="panel" aria-label="Mission details" hidden></aside>
   </main>
+
+  <section id="evidence" class="evidence" aria-labelledby="evidence-heading" hidden>
+    <h2 id="evidence-heading">Evidence for ancient water</h2>
+    <p class="evidence-intro">Step through what made scientists choose these sites, and what the missions actually found. A reason for choosing a landing site is not the same as a finding.</p>
+    <div id="evidence-tabs" class="evidence-tabs" role="tablist" aria-label="Evidence"></div>
+    <div id="evidence-card" class="ev-card" role="tabpanel" tabindex="0"></div>
+  </section>
 
   <div id="announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 

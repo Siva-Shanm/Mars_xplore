@@ -531,5 +531,60 @@
         }
       ]
     }
+  ],
+  "evidence": [
+    {
+      "id": "rounded-pebbles",
+      "kind": "finding",
+      "missionIds": [
+        "sojourner"
+      ],
+      "title": "Rounded pebbles at Ares Vallis",
+      "text": "Rounded pebbles and cobbles at the landing site suggested conglomerates that formed in running water during a warmer past.",
+      "stopId": "drive",
+      "sourceIds": [
+        "pathfinder"
+      ]
+    },
+    {
+      "id": "gusev-selection",
+      "kind": "siteSelection",
+      "missionIds": [
+        "spirit"
+      ],
+      "title": "Why Gusev Crater",
+      "text": "The twin rovers were targeted at sites that looked as though they were affected by liquid water in the past. Gusev Crater was a possible former lake in a giant impact crater.",
+      "stopId": "landing",
+      "sourceIds": [
+        "mer"
+      ]
+    },
+    {
+      "id": "meridiani-selection",
+      "kind": "siteSelection",
+      "missionIds": [
+        "opportunity"
+      ],
+      "title": "Why Meridiani Planum",
+      "text": "Opportunity was sent to Meridiani Planum, a place where mineral deposits suggested that Mars had a wet history.",
+      "stopId": "landing",
+      "sourceIds": [
+        "mer"
+      ]
+    },
+    {
+      "id": "joint-water",
+      "kind": "finding",
+      "missionIds": [
+        "spirit",
+        "opportunity"
+      ],
+      "title": "What the twin rovers found",
+      "text": "By studying the rock record, Spirit and Opportunity confirmed that water was long standing on the surface of Mars in ancient times.",
+      "stopId": null,
+      "sourceIds": [
+        "mer"
+      ]
+    }
   ]
 }

@@ -310,3 +310,133 @@ h1 { margin: 0; font-size: clamp(1.25rem, 2.4vw, 1.7rem); letter-spacing: 0.01em
   .panel, .nav-btn, .btn { transition: none; }
   .panel { transform: none; }
 }
+
+/* ======================================================================
+   Upgrade: rover replays, callouts, evidence, comparison graphics
+   ====================================================================== */
+
+.btn-primary { background: linear-gradient(180deg, #1b5f78, #12485c); border-color: var(--accent); font-weight: 650; }
+.btn-primary:hover:not(:disabled) { background: linear-gradient(180deg, #227494, #165a72); }
+.watch { margin-top: 14px; padding: 12px; border-radius: var(--radius); border: 1px solid rgba(86, 217, 255, 0.35); background: rgba(86, 217, 255, 0.06); }
+.watch .btn-primary { width: 100%; min-height: 46px; font-size: 1.02rem; }
+.watch-icon { display: inline-block; margin-right: 4px; }
+.watch .note { margin-top: 6px; }
+
+/* Stage fade between globe and close-up, and marker highlight */
+.stage-fade { position: absolute; inset: 0; background: #07080b; opacity: 0; pointer-events: none; transition: opacity 240ms ease; }
+.globe-stage.is-fading .stage-fade { opacity: 1; }
+.globe-stage.is-surface .globe-canvas canvas { cursor: default; }
+.poi.is-highlight .poi-dot { animation: highlight 0.8s ease-in-out 3; }
+.poi.is-highlight .poi-label { border-color: var(--plan); }
+@keyframes highlight { 50% { transform: scale(1.9); box-shadow: 0 0 0 6px rgba(255, 195, 92, 0.45), 0 0 18px var(--plan); } }
+
+/* Floating callout inside the stage (one at a time) */
+.callout {
+  position: absolute; left: 0; top: 0; max-width: min(280px, 70%); pointer-events: none; will-change: transform;
+  padding: 6px 10px; border-radius: 8px; font-size: 0.86rem; font-weight: 600; line-height: 1.3;
+  background: rgba(7, 12, 18, 0.9); border: 1px solid var(--accent); color: #eaf9ff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  animation: callout-in 260ms var(--ease);
+}
+.callout::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; margin-left: -6px; transform: rotate(45deg); background: inherit; border-right: 1px solid var(--accent); border-bottom: 1px solid var(--accent); }
+@keyframes callout-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Replay section */
+.replay { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(180deg, rgba(20, 26, 38, 0.95), rgba(12, 15, 22, 0.95)); animation: rise 280ms var(--ease); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.replay-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.replay-title { margin: 0; font-size: 1.02rem; }
+.replay-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.model-badge:empty { display: none; }
+.replay-caption { min-height: 3.2em; padding: 8px 12px; border-left: 3px solid var(--accent); background: rgba(86, 217, 255, 0.06); border-radius: 0 8px 8px 0; }
+.replay-caption-text { margin: 0; font-weight: 600; }
+.replay-caption .cite { margin: 2px 0 0; }
+/* When the callout floats in the canvas, keep the region's size but hide the duplicate text. */
+.replay-caption.is-floating .replay-caption-text { visibility: hidden; }
+.replay-progress { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.replay-progress-fill { display: block; height: 100%; width: 0; background: var(--accent); }
+.replay-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.scrub { display: flex; align-items: center; gap: 8px; flex: 1 1 200px; min-width: 0; }
+.scrub-label { font-size: 0.8rem; color: var(--text-dim); white-space: nowrap; }
+.scrub input { flex: 1; min-width: 0; accent-color: var(--accent); height: 32px; }
+.replay-time { font-size: 0.85rem; color: var(--text-dim); min-width: 8ch; text-align: right; }
+.replay-stops { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; counter-reset: none; }
+.stop-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 10px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; font-size: 0.85rem; color: var(--text);
+  transition: border-color 200ms, background 200ms;
+}
+.stop-btn:hover { border-color: var(--accent); }
+.stop-idx { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 0.72rem; font-weight: 700; border: 1.5px solid var(--text-dim); }
+.replay-stops li.is-past .stop-idx { border-color: var(--accent); background: rgba(86, 217, 255, 0.2); }
+.stop-btn[aria-current="step"] { border-color: var(--accent); background: #10303d; box-shadow: 0 0 0 1px var(--accent), 0 0 14px var(--accent-soft); }
+.stop-btn[aria-current="step"] .stop-idx { background: var(--accent); color: #032430; border-color: var(--accent); }
+.replay-chips-wrap { display: grid; gap: 4px; }
+.replay-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: grid; gap: 1px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); text-align: left; font-size: 0.82rem; color: var(--text); }
+.chip-btn { cursor: pointer; transition: border-color 200ms, background 200ms, transform 200ms; }
+.chip-btn:hover { border-color: var(--accent); }
+.chip.is-active { border-color: var(--plan); background: #33270f; transform: translateY(-1px); }
+.chip-label { color: var(--text-dim); font-size: 0.75rem; }
+.chip-value { font-weight: 700; }
+.chip-src { font-size: 0.72rem; }
+.chip.is-plan { border-style: dashed; border-color: rgba(255, 195, 92, 0.55); }
+.replay-plan-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.replay-plan-row .note { margin: 0; }
+
+/* Mission comparison: bars grow from a shared zero */
+.bar-fill { width: 0; transition: width 1100ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.disp-graphic { margin: 12px 0 0; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); }
+.disp-svg { display: block; width: 100%; height: auto; }
+.disp-ground { stroke: #6b5446; stroke-width: 2; }
+.disp-path { fill: none; stroke: #bfefff; stroke-width: 1.5; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0.85; }
+.disp-tick { stroke: var(--text-dim); stroke-width: 1.5; }
+.disp-label { fill: var(--text-dim); font: 10px var(--font); }
+.disp-dot { fill: #e8dcc0; stroke: #fff; offset-distance: 0%; }
+.disp-graphic.is-run .disp-path { animation: draw 3.2s ease-out forwards; }
+.disp-graphic.is-run .disp-dot { animation: travel 3.2s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes travel { to { offset-distance: 100%; } }
+.disp-graphic figcaption { margin-top: 6px; font-size: 0.82rem; color: var(--text-dim); }
+
+/* Evidence section */
+.evidence { margin: 0 clamp(12px, 2vw, 24px) 20px; padding: 16px clamp(14px, 2vw, 22px); border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(180deg, rgba(18, 23, 34, 0.9), rgba(10, 13, 19, 0.9)); }
+.evidence h2 { margin: 0; font-size: 1.15rem; }
+.evidence-intro { margin: 4px 0 12px; color: var(--text-dim); font-size: 0.92rem; max-width: 80ch; }
+.evidence-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.ev-tab { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 12px; cursor: pointer; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--text); font-size: 0.9rem; }
+.ev-tab.is-selection { border-style: dashed; }
+.ev-tab[aria-selected="true"] { border-color: var(--accent); background: #10303d; }
+.ev-tab.is-selection[aria-selected="true"] { border-color: var(--plan); background: #33270f; }
+.ev-num { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 0.72rem; font-weight: 700; border: 1.5px solid currentColor; }
+.ev-card { margin-top: 12px; padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); }
+.ev-card.is-finding { border-left: 4px solid var(--accent); }
+.ev-card.is-selection { border-left: 4px dashed var(--plan); }
+.ev-card.is-entering { animation: rise 260ms var(--ease); }
+.ev-card h3 { margin: 2px 0 6px; font-size: 1.05rem; }
+.ev-badge { margin: 0; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.is-selection .ev-badge { color: var(--plan); }
+.ev-text { margin: 0; }
+.ev-who { margin: 6px 0 0; font-size: 0.85rem; color: var(--text-dim); }
+.ev-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px; }
+
+@media (max-width: 520px) {
+  .replay-controls .btn { flex: 1 1 auto; }
+  .scrub { flex-basis: 100%; }
+  .replay-time { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill, .stop-btn, .chip-btn { transition: none; }
+  .replay, .ev-card.is-entering, .callout { animation: none; }
+  .disp-graphic .disp-path { stroke-dashoffset: 0; animation: none !important; }
+  .disp-graphic .disp-dot { offset-distance: 100%; animation: none !important; }
+  .poi.is-highlight .poi-dot { animation: none; box-shadow: 0 0 0 4px var(--plan); }
+  .stage-fade { transition: none; }
+}
+.motion-paused .disp-path, .motion-paused .disp-dot { animation-play-state: paused; }
+/* While a replay is open, keep the close-up and its controls on screen together. */
+.layout.is-replay .globe-stage { height: min(58vh, calc(100vh - 330px)); min-height: 300px; }
+.surface-badge { display: none; position: absolute; left: 10px; top: 10px; margin: 0; padding: 4px 10px; font-size: 0.78rem; font-weight: 600; border-radius: 999px; background: rgba(10, 13, 19, 0.85); border: 1px solid var(--line); color: var(--text); pointer-events: none; }
+.globe-stage.is-surface .surface-badge { display: block; }
+.globe-stage.is-surface .globe-status { display: none; }

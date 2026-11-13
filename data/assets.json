@@ -43,5 +43,45 @@
         "objectPosition": "50% 45%"
       }
     ]
-  }
+  },
+  "roverModels": {
+    "mer": {
+      "src": "Spirit&Opportunity3dmodel.glb",
+      "usedFor": [
+        "spirit",
+        "opportunity"
+      ],
+      "credit": "Supplied Mars Exploration Rover model (Blender glTF 2.0 export). Geometry and texture names match the supplied 24883_MER_static.usdz. Origin and license to be confirmed by the team.",
+      "upAxis": "+Y",
+      "forwardAxis": "+Z",
+      "unitsPerMeter": 1,
+      "yawDeg": 0,
+      "expectedHeightM": [
+        1.2,
+        2.0
+      ],
+      "frontMaterial": "tex_mast",
+      "wheelRig": {
+        "material": "tex_suspension_n",
+        "count": 6,
+        "axis": "x",
+        "radiusRange": [
+          0.1,
+          0.16
+        ]
+      }
+    },
+    "sojourner": null,
+    "pathfinderLander": null
+  },
+  "unusedAssets": [
+    {
+      "src": "24883_MER_static.usdz",
+      "reason": "Binary USDC inside USDZ is not loadable by the Three.js r180 USD loader; the supplied GLB carries the same model."
+    },
+    {
+      "src": "pathfinder1.jpeg",
+      "reason": "Artist's rendering of the Pathfinder lander; the overhead lander image is used instead."
+    }
+  ]
 }

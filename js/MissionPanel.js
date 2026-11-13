@@ -50,7 +50,9 @@ function formatDate(iso) {
 }
 
 export class MissionPanel {
-  constructor({ root, data, assets, onClose, onJourneyChange }) {
+  constructor({ root, data, assets, onClose, onJourneyChange, onWatch, canWatch }) {
+    this.onWatch = onWatch
+    this.canWatch = canWatch
     this.root = root
     this.data = data
     this.assets = assets
@@ -81,6 +83,12 @@ export class MissionPanel {
     requestAnimationFrame(() => {
       if (token !== this._token) return
       this.root.classList.add('is-open')
+      // Bars grow from a common zero baseline; values stay visible as text throughout.
+      requestAnimationFrame(() => {
+        if (token !== this._token) return
+        for (const b of this.root.querySelectorAll('.bar-fill[data-w]')) b.style.width = `${b.dataset.w}%`
+        this.root.querySelector('.disp-graphic')?.classList.add('is-run')
+      })
     })
     if (focusHeading) this.root.querySelector('#panel-title')?.focus({ preventScroll: false })
   }
@@ -161,6 +169,14 @@ export class MissionPanel {
         el('span', { class: 'label', text: 'Landing site (rounded): ' }),
         el('span', { class: 'num', text: formatLatLon(landing.coordinates, 1) }),
         ' ', this._cite(landing.sourceIds)))
+    }
+
+    // Primary action -----------------------------------------------------------
+    if (this.canWatch?.(m.id)) {
+      frag.append(el('div', { class: 'watch' },
+        el('button', { type: 'button', class: 'btn btn-primary', id: 'btn-watch', 'data-action': 'watch', onclick: () => this.onWatch?.(m.id) },
+          el('span', { class: 'watch-icon', 'aria-hidden': 'true', text: '▶' }), ' Watch rover journey'),
+        el('p', { class: 'note', text: 'An illustrative surface close-up with play, pause and a stop-by-stop timeline. Schematic · not to scale.' })))
     }
 
     // Dates and metrics -----------------------------------------------------
@@ -324,6 +340,56 @@ export class MissionPanel {
     return sec
   }
 
+  /** Separate first-impact-to-rest graphic for the lander displacement (own label and units). */
+  _displacementGraphic(pf, disp) {
+    const NS = 'http://www.w3.org/2000/svg'
+    const svg = document.createElementNS(NS, 'svg')
+    svg.setAttribute('viewBox', '0 0 320 92')
+    svg.setAttribute('class', 'disp-svg')
+    svg.setAttribute('aria-hidden', 'true')
+    const b = pf.traversePaths.find((p) => p.bounce)?.bounce
+    const n = Math.min(b?.count ?? 8, 15)
+    let d = 'M 16 70'
+    let x = 16
+    let h = 46
+    const w0 = 252
+    let sumW = 0
+    const ws = []
+    for (let k = 0; k < n; k++) { ws.push(Math.pow(0.86, k)); sumW += ws[k] }
+    for (let k = 0; k < n; k++) {
+      const w = (ws[k] / sumW) * w0 * 0.9
+      d += ` Q ${(x + w / 2).toFixed(1)} ${(70 - h * 2).toFixed(1)} ${(x + w).toFixed(1)} 70`
+      x += w; h *= 0.8
+    }
+    d += ` L ${16 + w0} 70`
+    const ground = document.createElementNS(NS, 'line')
+    Object.entries({ x1: 8, y1: 72, x2: 312, y2: 72, class: 'disp-ground' }).forEach(([k, v]) => ground.setAttribute(k, v))
+    const path = document.createElementNS(NS, 'path')
+    path.setAttribute('d', d)
+    path.setAttribute('class', 'disp-path')
+    path.setAttribute('pathLength', '1')
+    const dot = document.createElementNS(NS, 'circle')
+    dot.setAttribute('r', '6'); dot.setAttribute('class', 'disp-dot')
+    dot.style.offsetPath = `path('${d}')`
+    const tick = (tx, label) => {
+      const g = document.createElementNS(NS, 'g')
+      const l = document.createElementNS(NS, 'line')
+      Object.entries({ x1: tx, y1: 66, x2: tx, y2: 80, class: 'disp-tick' }).forEach(([k, v]) => l.setAttribute(k, v))
+      const t = document.createElementNS(NS, 'text')
+      Object.entries({ x: tx, y: 90, 'text-anchor': tx < 100 ? 'start' : 'end', class: 'disp-label' }).forEach(([k, v]) => t.setAttribute(k, v))
+      t.textContent = label
+      g.append(l, t)
+      return g
+    }
+    svg.append(ground, path, dot, tick(16, 'First impact'), tick(16 + w0, 'Rest'))
+    return el('figure', { class: 'disp-graphic' },
+      svg,
+      el('figcaption', {},
+        el('strong', { text: 'Pathfinder landing, shown separately: ' }),
+        `lander displacement from first impact to rest, ${formatDistance(disp)}. Not a rover odometer; bounce heights are schematic. `,
+        this._cite(disp.sourceIds)))
+  }
+
   _renderComparison(current) {
     const rows = []
     for (const m of this.data.missions) {
@@ -338,8 +404,8 @@ export class MissionPanel {
       const list = el('ul', { class: 'bars' })
       for (const r of rows) {
         const pct = (r.km / max) * 100
-        const bar = el('span', { class: 'bar-fill', 'aria-hidden': 'true' })
-        bar.style.width = `${pct.toFixed(2)}%`
+        const bar = el('span', { class: 'bar-fill', 'aria-hidden': 'true', 'data-w': pct.toFixed(2) })
+        bar.style.width = matchMedia('(prefers-reduced-motion: reduce)').matches ? `${pct.toFixed(2)}%` : '0%'
         list.append(el('li', { class: r.m.id === current.id ? 'is-current' : '' },
           el('span', { class: 'bar-label' }, el('span', { text: r.m.name }), r.m.id === current.id ? el('span', { class: 'tag', text: ' (this mission)' }) : null),
           el('span', { class: 'bar-track', 'aria-hidden': 'true' }, bar),
@@ -351,9 +417,7 @@ export class MissionPanel {
     const pf = this.data.missions.find((m) => m.id === 'sojourner')
     const disp = pf?.distanceTraveled.find((d) => d.kind === 'landerDisplacement')
     if (disp) {
-      sec.append(el('p', { class: 'note' },
-        el('strong', { text: 'Reported separately: ' }),
-        `Pathfinder lander displacement during landing, ${formatDistance(disp)}. Not a rover odometer. `, this._cite(disp.sourceIds)))
+      sec.append(this._displacementGraphic(pf, disp))
     }
     return sec
   }

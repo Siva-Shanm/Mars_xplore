@@ -8,6 +8,10 @@ import { CameraFlight } from './CameraFlight.js'
 import { TraverseRenderer } from './TraverseRenderer.js'
 import { coordinatesToUnit, latLonToUnit } from './geography.js'
 import { resolveLocal } from './validate.js'
+import { RoverLibrary, makeLander, makeSojourner } from './RoverModels.js'
+import { SurfaceScene } from './SurfaceScene.js'
+
+export { RoverLibrary, SurfaceScene }
 
 const PICK_LAYER = 1
 const MARKER_LIFT = 0.004
@@ -17,6 +21,10 @@ const LOAD_DEADLINE_MS = 10000
 const HOME_LATLON = [12, -18] // frames Ares Vallis (19°N 33.5°W) and Meridiani (2°S 5.5°W)
 const FLY_RADIUS = 2.6
 const FACING_TOLERANCE = 0.08
+const ROVER_OFFSET = 0.05 // rad south of the marker, so the enlarged rover never hides it
+const ROVER_DISPLAY = 0.03 // globe units per rover height: enlarged for visibility
+const FADE_MS = 240
+const CLOSE_RADIUS = 1.32
 
 const _v = new THREE.Vector3()
 const _n = new THREE.Vector3()
@@ -26,9 +34,11 @@ const _ndc = new THREE.Vector2()
 
 function disposeObject(root) {
   root?.traverse((o) => {
+    if (o.userData.shared) return // rover library template parts are reused
     o.geometry?.dispose()
     const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []
     for (const m of mats) {
+      if (m.userData.shared) continue
       for (const v of Object.values(m)) if (v && v.isTexture) v.dispose()
       m.dispose()
     }
@@ -43,7 +53,16 @@ export function webglAvailable() {
 }
 
 export class GlobeRenderer {
-  constructor({ stage, canvasHost, poiLayer, missions, model, gsap, reducedMotion, callbacks }) {
+  constructor({ stage, canvasHost, poiLayer, missions, model, gsap, reducedMotion, callbacks, roverLibrary }) {
+    this.library = roverLibrary
+    this.view = 'globe' // 'globe' | 'entering' | 'surface'
+    this.closeup = null
+    this.playhead = 0
+    this.playing = false
+    this.viewToken = 0
+    this.globeRovers = new Map()
+    this.callout = null
+    this.calloutMode = null
     this.stage = stage
     this.canvasHost = canvasHost
     this.poiLayer = poiLayer
@@ -74,6 +93,8 @@ export class GlobeRenderer {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
     renderer.domElement.setAttribute('aria-hidden', 'true')
     renderer.domElement.style.touchAction = 'none'
+    renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.canvasHost.append(renderer.domElement)
     this.renderer = renderer
 
@@ -143,6 +164,9 @@ export class GlobeRenderer {
     this.raycaster.layers.set(PICK_LAYER)
 
     this._buildMarkers()
+    this._buildRovers()
+    this._unsubLibrary = this.library?.onReady(() => this._onRoverModelReady())
+    this._buildCallout()
     this._bindInput()
 
     this.resizeObserver = new ResizeObserver((entries) => {
@@ -170,6 +194,7 @@ export class GlobeRenderer {
     this._applySurface()
     this._start()
     this.cb.onStatus?.('globe', 'Simplified globe', 'info')
+    this._roverStatus()
     this.loadModel()
     return this
   }
@@ -190,6 +215,12 @@ export class GlobeRenderer {
     document.removeEventListener('visibilitychange', this._onVisibility)
     this.controls?.dispose()
     this.traverse?.clear()
+    this._unsubLibrary?.()
+    this.viewToken++
+    this.closeup?.dispose()
+    this.closeup = null
+    this.callout?.remove()
+    this.stage.classList.remove('is-fading', 'is-surface')
     for (const m of this.markers.values()) m.button.remove()
     for (const l of this.journeyLabels) l.el.remove()
     disposeObject(this.scene)
@@ -204,6 +235,7 @@ export class GlobeRenderer {
     this.renderer.setSize(w, h, false)
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
+    this.closeup?.resize(w, h)
     this.homeDistance = this._fitDistance() * 1.12
     this.controls.maxDistance = Math.max(8, this.homeDistance * 1.2)
   }
@@ -311,6 +343,7 @@ export class GlobeRenderer {
     this._surfaceRadius = new Map()
     this.markersSuppressed = textured && !this.modelVerified
     for (const m of this.markers.values()) this._placeMarker(m)
+    if (this.roverRoot) this.roverRoot.visible = !this.markersSuppressed
     if (textured && !this.modelVerified) {
       this.cb.onStatus?.('globe', 'Textured model · surface alignment unverified · markers and routes hidden', 'warn',
         { label: 'Use reference sphere', run: () => this.cb.onRequestSurface?.('reference') })
@@ -386,6 +419,207 @@ export class GlobeRenderer {
     const r = this.radiusAt(m.dir)
     m.anchor.position.copy(m.dir).multiplyScalar(r + MARKER_LIFT)
     m.proxy.layers.set(this.markersSuppressed ? 31 : PICK_LAYER)
+    this._placeGlobeRover(m.id)
+  }
+
+  // ------------------------------------------------------------ globe rovers
+
+  _buildRovers() {
+    this.roverRoot = new THREE.Group()
+    this.roverRoot.name = 'globeRovers'
+    this.globeRoot.add(this.roverRoot)
+    for (const m of this.markers.values()) this._makeGlobeRover(m.id)
+  }
+
+  _makeGlobeRover(id) {
+    const old = this.globeRovers.get(id)
+    if (old) { this.roverRoot.remove(old.holder); disposeObject(old.holder) }
+    const holder = new THREE.Group()
+    holder.name = `globe-rover-${id}`
+    let height
+    let simplified
+    if (id === 'sojourner') {
+      const lander = makeLander({ withRamp: true, withAirbags: false })
+      lander.setAirbags(0); lander.setPetals(1); lander.setRamp(1)
+      const rover = makeSojourner()
+      rover.root.position.set(lander.rampFoot.x + 0.45, 0, 0.2)
+      rover.root.rotation.y = Math.PI / 2
+      holder.add(lander.root, rover.root)
+      height = 0.9
+      simplified = true
+    } else {
+      const inst = this.library ? this.library.createMER() : null
+      if (!inst) return
+      holder.add(inst.root)
+      height = inst.dims.height || 1.5
+      simplified = inst.simplified
+    }
+    holder.scale.setScalar(ROVER_DISPLAY / height)
+    // Rovers render on the default layer only, so they never intercept picking.
+    this.roverRoot.add(holder)
+    this.globeRovers.set(id, { holder, simplified })
+    this._placeGlobeRover(id)
+  }
+
+  _placeGlobeRover(id) {
+    const gr = this.globeRovers.get(id)
+    const m = this.markers.get(id)
+    if (!gr || !m || !this.roverRoot) return
+    const n = m.dir.clone().normalize()
+    const east = new THREE.Vector3(0, 1, 0).cross(n).normalize()
+    const north = new THREE.Vector3().crossVectors(n, east).normalize()
+    const at = n.clone().multiplyScalar(Math.cos(ROVER_OFFSET)).addScaledVector(north, -Math.sin(ROVER_OFFSET)).normalize()
+    const r = this.radiusAt(at)
+    const up = at.clone()
+    const fwd = north.clone().addScaledVector(up, -north.dot(up)).normalize()
+    const right = new THREE.Vector3().crossVectors(up, fwd)
+    gr.holder.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, fwd))
+    gr.holder.position.copy(at).multiplyScalar(r)
+    gr.holder.visible = !this.markersSuppressed
+  }
+
+  _onRoverModelReady() {
+    for (const id of ['spirit', 'opportunity']) if (this.markers.has(id)) this._makeGlobeRover(id)
+    this.closeup?.requestModelSwap()
+    this._roverStatus()
+  }
+
+  _roverStatus() {
+    const simplified = this.library && !this.library.merReady
+    this.cb.onStatus?.('rovers', `Rovers enlarged for visibility · not to scale${simplified ? ' · Simplified rover model' : ''}`, 'info')
+  }
+
+  // ------------------------------------------------------------ surface view
+
+  _buildCallout() {
+    const el = document.createElement('div')
+    el.className = 'callout'
+    el.hidden = true
+    el.setAttribute('aria-hidden', 'true') // the caption region carries the accessible text
+    this.poiLayer.append(el)
+    this.callout = el
+  }
+
+  /** Fly down to the landing site, then cut to the illustrative close-up. */
+  enterSurface(def, { onArrive } = {}) {
+    const token = ++this.viewToken
+    const m = this.markers.get(def.missionId)
+    this.savedPose = { pos: this.camera.position.clone(), target: this.controls.target.clone(), rot: this.globeRoot.rotation.y }
+    this.closeup?.dispose()
+    const small = Math.min(this.size.w, this.size.h) < 560
+    this.closeup = new SurfaceScene({ def, library: this.library, quality: { shadows: !small, segments: small ? 110 : 180 } })
+    this.closeup.resize(this.size.w, this.size.h)
+    this.closeup.apply(this.playhead, { playing: false })
+    this.view = 'entering'
+    this.selectedId = def.missionId
+    const cut = () => {
+      if (token !== this.viewToken) return
+      this.stage.classList.add('is-fading')
+      setTimeout(() => {
+        if (token !== this.viewToken) return
+        this.flight.cancel()
+        this.controls.enabled = false
+        this.view = 'surface'
+        this.stage.classList.add('is-surface')
+        this.stage.classList.remove('is-fading')
+        onArrive?.()
+      }, this.reducedMotion ? 0 : FADE_MS)
+    }
+    if (!m) { cut(); return }
+    this.globeRoot.updateMatrixWorld(true)
+    const dir = m.anchor.getWorldPosition(new THREE.Vector3()).normalize()
+    const immediate = this.reducedMotion || !this.gsap
+    this.flight.fly({ toDir: dir, toRadius: CLOSE_RADIUS, immediate, onDone: (ok) => { if (ok) cut() } })
+  }
+
+  /** Return to the globe, restoring the camera pose saved on entry. */
+  exitSurface() {
+    const token = ++this.viewToken
+    const wasSurface = this.view === 'surface'
+    this.flight.cancel()
+    this.view = 'globe'
+    this.setCallout(null)
+    const restore = () => {
+      if (token !== this.viewToken) return
+      this.stage.classList.remove('is-surface', 'is-fading')
+      this.closeup?.dispose()
+      this.closeup = null
+      if (this.flight.active) return // a new selection is already flying from here
+      if (this.savedPose) {
+        this.camera.position.copy(this.savedPose.pos)
+        this.controls.target.copy(this.savedPose.target)
+        this.camera.lookAt(this.controls.target)
+        const d = this.controls.enableDamping
+        this.controls.enableDamping = false
+        this.controls.update()
+        this.controls.enableDamping = d
+      }
+      this.controls.enabled = true
+      this.markInput()
+    }
+    if (wasSurface && !this.reducedMotion) {
+      this.stage.classList.add('is-fading')
+      setTimeout(restore, FADE_MS)
+    } else restore()
+  }
+
+  get inSurface() { return this.view !== 'globe' }
+
+  setPlayhead(t, playing) { this.playhead = t; this.playing = playing }
+
+  setPlanVisible(v) { this.closeup?.setPlanVisible(v) }
+
+  get roverSimplified() { return this.closeup ? this.closeup.roverIsSimplified : !this.library?.merReady }
+
+  /** Active callout: {text, anchor} or null. */
+  setCallout(cue) {
+    this.calloutCue = cue
+    if (this.callout) this.callout.textContent = cue ? cue.text : ''
+    if (!cue) this._setCalloutMode(null)
+  }
+
+  _setCalloutMode(mode) {
+    if (mode === this.calloutMode) return
+    this.calloutMode = mode
+    if (this.callout) this.callout.hidden = mode !== 'float'
+    this.cb.onCalloutMode?.(mode)
+  }
+
+  _projectCallout() {
+    const cue = this.calloutCue
+    if (!cue || this.view !== 'surface' || !this.closeup) { this._setCalloutMode(cue ? 'fixed' : null); return }
+    const cs = this.closeup
+    const p = cs.anchor(cue.anchor, _v)
+    const { w, h } = this.size
+    _c.copy(p).applyMatrix4(cs.camera.matrixWorldInverse)
+    const behind = _c.z > -cs.camera.near
+    _p.copy(p).project(cs.camera)
+    const off = behind || Math.abs(_p.x) > 1 || Math.abs(_p.y) > 1 || cs.occluded(p)
+    if (off || w < 600) { this._setCalloutMode('fixed'); return }
+    const el = this.callout
+    const cw = el.offsetWidth || 180
+    const ch = el.offsetHeight || 32
+    let x = (_p.x + 1) * 0.5 * w - cw / 2
+    let y = (1 - _p.y) * 0.5 * h - ch - 14
+    x = Math.min(Math.max(8, x), w - cw - 8)
+    y = Math.min(Math.max(8, y), h - ch - 8)
+    // Never cover the rover: fall back to the fixed caption region below the canvas.
+    const rv = cs.roverScreen(this.size)
+    const nx = Math.max(x, Math.min(rv.x, x + cw))
+    const ny = Math.max(y, Math.min(rv.y, y + ch))
+    if ((nx - rv.x) ** 2 + (ny - rv.y) ** 2 < rv.r * rv.r * 0.8) { this._setCalloutMode('fixed'); return }
+    el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
+    this._setCalloutMode('float')
+  }
+
+  highlightSite(id) {
+    const m = this.markers.get(id)
+    if (!m) return
+    m.button.classList.remove('is-highlight')
+    void m.button.offsetWidth
+    m.button.classList.add('is-highlight')
+    clearTimeout(m.hlTimer)
+    m.hlTimer = setTimeout(() => m.button.classList.remove('is-highlight'), 2600)
   }
 
   _visibleAt(world) {
@@ -406,7 +640,7 @@ export class GlobeRenderer {
   _projectOverlays() {
     for (const m of this.markers.values()) {
       m.anchor.getWorldPosition(_v)
-      const show = !this.markersSuppressed && this._visibleAt(_v)
+      const show = this.view === 'globe' && !this.markersSuppressed && this._visibleAt(_v)
       if (show) {
         const [x, y] = this._toStage()
         m.x = x; m.y = y
@@ -421,7 +655,7 @@ export class GlobeRenderer {
     for (const l of this.journeyLabels) {
       _v.copy(l.local)
       this.globeRoot.localToWorld(_v)
-      const show = this._visibleAt(_v)
+      const show = this.view === 'globe' && this._visibleAt(_v)
       if (show) {
         const [x, y] = this._toStage()
         l.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
@@ -450,7 +684,7 @@ export class GlobeRenderer {
     const end = (e, cancelled) => {
       const p = pointers.get(e.pointerId)
       pointers.delete(e.pointerId)
-      const tap = p && !cancelled && p.primary && !multi && p.moved < 6 && !this.flight.active
+      const tap = p && !cancelled && p.primary && !multi && p.moved < 6 && !this.flight.active && this.view === 'globe'
       if (pointers.size === 0) multi = false
       if (tap) {
         const id = this.pickAt(e.clientX, e.clientY)
@@ -562,18 +796,27 @@ export class GlobeRenderer {
   // ---------------------------------------------------------------- the loop
 
   _idleEligible(now) {
-    return !this.reducedMotion && !this.motionPaused && !this.selectedId && !this.gesture &&
+    return this.view === 'globe' && !this.reducedMotion && !this.motionPaused && !this.selectedId && !this.gesture &&
       !this.flight.active && now - this.lastInput > IDLE_DELAY_MS
   }
 
   _frame(now) {
     const dt = Math.min(Math.max((now - this.lastFrame) / 1000, 0), 0.1)
     this.lastFrame = now
+    this.cb.onFrame?.(dt)
+    if (this.view === 'surface' && this.closeup) {
+      this.closeup.apply(this.playhead, { playing: this.playing })
+      this._projectOverlays()
+      this._projectCallout()
+      this.renderer.render(this.closeup.scene, this.closeup.camera)
+      return
+    }
     if (this._idleEligible(now)) this.globeRoot.rotation.y += IDLE_SPEED * dt
-    if (!this.flight.active) this.controls.update(dt)
+    if (!this.flight.active && this.view === 'globe') this.controls.update(dt)
     this.globeRoot.updateMatrixWorld()
     this.camera.updateMatrixWorld()
     this._projectOverlays()
+    this._projectCallout()
     this.renderer.render(this.scene, this.camera)
   }
 }

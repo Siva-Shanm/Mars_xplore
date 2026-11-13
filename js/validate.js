@@ -27,7 +27,7 @@ export function isSafeSourceUrl(url) {
 export function isSafeLocalPath(p) {
   return typeof p === 'string' && p.length > 0 && p.length < 300 &&
     !/^[a-z][a-z0-9+.-]*:/i.test(p) && !p.startsWith('/') && !p.includes('\\') &&
-    !p.split('/').some((seg) => seg === '..' || seg === '') && /^[\w .()\-/]+$/.test(p)
+    !p.split('/').some((seg) => seg === '..' || seg === '') && /^[\w .()&\-/]+$/.test(p)
 }
 
 /** Resolve a manifest path against document.baseURI (works on GitHub Pages subpaths). */
@@ -132,6 +132,7 @@ export function validateRovers(json) {
   const mars = isObj(json.mars) && Number.isFinite(json.mars.meanRadiusKm) && json.mars.meanRadiusKm > 0 ? json.mars : null
   const missions = []
   const excluded = []
+  const evidence = []
   const seen = new Set()
   for (const m of json.rovers) {
     const errs = validateMission(m, sources)
@@ -140,13 +141,24 @@ export function validateRovers(json) {
     else { missions.push(m); seen.add(m.id) }
   }
   if (!missions.length) throw new Error('No valid missions in mission data')
-  return { mars, sources, missions, excluded }
+  // Optional evidence cards: a finding the missions made vs. a reason a site was chosen.
+  for (const e of Array.isArray(json.evidence) ? json.evidence : []) {
+    const errs = []
+    if (!isObj(e) || !ID_RE.test(e.id ?? '') || !['finding', 'siteSelection'].includes(e.kind) || !isStr(e.title) || !isStr(e.text)) errs.push('shape')
+    else {
+      checkSourceIds(e.sourceIds, sources, `evidence ${e.id}`, errs)
+      if (!Array.isArray(e.missionIds) || !e.missionIds.every((id) => seen.has(id))) errs.push('missionIds')
+    }
+    if (errs.length) console.warn('[data] evidence excluded', e?.id, errs)
+    else evidence.push(e)
+  }
+  return { mars, sources, missions, excluded, evidence }
 }
 
 /** Normalizes the asset manifest; invalid entries become null / are dropped with warnings. */
 export function validateAssets(json) {
   const warnings = []
-  const out = { model: null, roverImages: {} }
+  const out = { model: null, roverImages: {}, roverModels: { mer: null } }
   for (const id of MISSION_IDS) out.roverImages[id] = []
   if (!isObj(json)) { warnings.push('Asset manifest unreadable'); return { assets: out, warnings } }
 
@@ -181,6 +193,22 @@ export function validateAssets(json) {
         objectPosition: typeof img.objectPosition === 'string' && /^\d{1,3}% \d{1,3}%$/.test(img.objectPosition) ? img.objectPosition : '50% 50%',
       }))
     }
+  }
+  out.roverModels = { mer: null }
+  const mer = json.roverModels?.mer
+  if (isObj(mer)) {
+    const rig = mer.wheelRig
+    if (isSafeLocalPath(mer.src) && /\.(glb|gltf)$/i.test(mer.src) && mer.upAxis === '+Y' && mer.forwardAxis === '+Z') {
+      out.roverModels.mer = {
+        src: mer.src,
+        credit: isStr(mer.credit) ? mer.credit : '',
+        yawDeg: Number.isFinite(mer.yawDeg) ? mer.yawDeg : 0,
+        unitsPerMeter: Number.isFinite(mer.unitsPerMeter) && mer.unitsPerMeter > 0 ? mer.unitsPerMeter : 1,
+        expectedHeightM: Array.isArray(mer.expectedHeightM) ? mer.expectedHeightM : [1.2, 2.0],
+        frontMaterial: isStr(mer.frontMaterial) ? mer.frontMaterial : null,
+        wheelRig: isObj(rig) && isStr(rig.material) && Number.isInteger(rig.count) && Array.isArray(rig.radiusRange) ? rig : null,
+      }
+    } else warnings.push('MER model entry invalid; procedural rover will be used')
   }
   return { assets: out, warnings }
 }
