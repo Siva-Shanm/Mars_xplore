@@ -1,0 +1,47 @@
+{
+  "model": {
+    "src": "Mars3dmodel.glb",
+    "credit": "Supplied Mars 3D model (Blender glTF 2.0 export, embedded textures). Origin and license to be confirmed by the team.",
+    "upAxis": "+Y",
+    "northAxis": "+Y",
+    "primeMeridianYawDeg": 90,
+    "longitudeSense": "east-positive",
+    "registrationStatus": "verified"
+  },
+  "roverImages": {
+    "sojourner": [
+      {
+        "src": "sojourner1.jpeg",
+        "alt": "The six-wheeled Sojourner rover, with its flat solar-panel top and antenna, on rocky reddish ground at Ares Vallis.",
+        "caption": "Sojourner on the surface of Ares Vallis.",
+        "credit": "Credit not supplied with file; presumed NASA/JPL. Confirm before release.",
+        "objectPosition": "50% 55%"
+      },
+      {
+        "src": "pathfinder2.jpeg",
+        "alt": "Overhead view of the Pathfinder lander: three opened solar-panel petals resting on deflated airbags on rock-strewn ground.",
+        "caption": "The Pathfinder lander seen from above, petals open on its deflated airbags.",
+        "credit": "Credit not supplied with file; presumed NASA/JPL. Confirm before release.",
+        "objectPosition": "50% 50%"
+      }
+    ],
+    "spirit": [
+      {
+        "src": "Spirit1.jpeg",
+        "alt": "Artist's rendering of a Mars Exploration Rover with its camera mast raised and solar wings deployed on a dusty plain.",
+        "caption": "Artist's concept of a Mars Exploration Rover. Spirit and Opportunity were identical twins.",
+        "credit": "Artist's concept. Credit not supplied with file; presumed NASA/JPL. Confirm before release.",
+        "objectPosition": "50% 50%"
+      }
+    ],
+    "opportunity": [
+      {
+        "src": "opportunity1.jpeg",
+        "alt": "Artist's rendering of a Mars Exploration Rover with camera mast, solar wings, and six wheels on rocky orange terrain.",
+        "caption": "Artist's concept of a Mars Exploration Rover. Opportunity and Spirit were identical twins.",
+        "credit": "Artist's concept. Credit not supplied with file; presumed NASA/JPL. Confirm before release.",
+        "objectPosition": "50% 45%"
+      }
+    ]
+  }
+}

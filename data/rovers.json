@@ -1,0 +1,535 @@
+{
+  "schemaVersion": 1,
+  "mars": {
+    "meanRadiusKm": 3389.5,
+    "sourceIds": [
+      "marsRadius"
+    ]
+  },
+  "sources": {
+    "pathfinder": {
+      "title": "Mars Pathfinder",
+      "url": "https://science.nasa.gov/mission/mars-pathfinder/"
+    },
+    "pathfinderCoords": {
+      "title": "Mars Pathfinder Landing Ellipses",
+      "url": "https://science.nasa.gov/photojournal/mars-pathfinder-landing-ellipses/"
+    },
+    "spirit": {
+      "title": "Spirit",
+      "url": "https://science.nasa.gov/mission/mer-spirit/"
+    },
+    "mer": {
+      "title": "Mars Exploration Rovers",
+      "url": "https://science.nasa.gov/mission/mars-exploration-rovers-spirit-and-opportunity/"
+    },
+    "spiritMap": {
+      "title": "Spirit’s Trip to the Hills",
+      "url": "https://science.nasa.gov/photojournal/spirits-trip-to-the-hills/"
+    },
+    "opportunity": {
+      "title": "Opportunity",
+      "url": "https://science.nasa.gov/mission/mer-opportunity/"
+    },
+    "marsRadius": {
+      "title": "Mars Fact Sheet",
+      "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html"
+    }
+  },
+  "rovers": [
+    {
+      "id": "sojourner",
+      "name": "Mars Pathfinder & Sojourner",
+      "designation": "The Pioneers",
+      "missionType": "Lander & Rover",
+      "sourceIds": [
+        "pathfinder"
+      ],
+      "site": {
+        "name": "Ares Vallis",
+        "context": "A rocky ancient flood plain in Mars’ northern hemisphere.",
+        "landingWaypointId": "station"
+      },
+      "dates": [
+        {
+          "event": "Launch",
+          "date": "1996-12-04",
+          "basis": "UTC",
+          "sourceIds": [
+            "pathfinder"
+          ]
+        },
+        {
+          "event": "Landing",
+          "date": "1997-07-04",
+          "basis": null,
+          "sourceIds": [
+            "pathfinder"
+          ]
+        },
+        {
+          "event": "Final transmission",
+          "date": "1997-09-27",
+          "basis": null,
+          "sourceIds": [
+            "pathfinder"
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "text": "Sojourner stood 1 ft tall and weighed 23 lb.",
+          "sourceIds": [
+            "pathfinder"
+          ]
+        },
+        {
+          "text": "Sojourner deployed down a ramp tilted 20° from the surface.",
+          "sourceIds": [
+            "pathfinder"
+          ]
+        },
+        {
+          "text": "Pathfinder returned 2.3 billion bits of information.",
+          "sourceIds": [
+            "pathfinder"
+          ]
+        }
+      ],
+      "discoveries": [
+        {
+          "text": "Rounded pebbles suggested flowing water during a warmer period of Mars’ past.",
+          "sourceIds": [
+            "pathfinder"
+          ]
+        },
+        {
+          "text": "Airborne dust showed magnetic properties.",
+          "sourceIds": [
+            "pathfinder"
+          ]
+        },
+        {
+          "text": "The mission observed early-morning clouds of water ice.",
+          "sourceIds": [
+            "pathfinder"
+          ]
+        }
+      ],
+      "distanceTraveled": [
+        {
+          "id": "landing-displacement",
+          "kind": "landerDisplacement",
+          "values": [
+            {
+              "value": 1,
+              "unit": "km"
+            }
+          ],
+          "approximate": true,
+          "sourceIds": [
+            "pathfinder"
+          ]
+        }
+      ],
+      "waypoints": [
+        {
+          "id": "first-impact",
+          "name": "First surface impact",
+          "kind": "impact",
+          "coordinates": null,
+          "sourceIds": [
+            "pathfinder"
+          ]
+        },
+        {
+          "id": "station",
+          "name": "Carl Sagan Memorial Station",
+          "kind": "landingSite",
+          "coordinates": {
+            "latDeg": 19.3,
+            "latHemisphere": "N",
+            "lonDeg": 33.52,
+            "lonHemisphere": "W"
+          },
+          "sourceIds": [
+            "pathfinder",
+            "pathfinderCoords"
+          ]
+        }
+      ],
+      "traversePaths": [
+        {
+          "id": "airbag-landing",
+          "name": "Pathfinder airbag landing",
+          "kind": "landingBounce",
+          "geometry": "schematic",
+          "waypointIds": [
+            "first-impact",
+            "station"
+          ],
+          "distanceIds": [
+            "landing-displacement"
+          ],
+          "sourceIds": [
+            "pathfinder"
+          ],
+          "bounce": {
+            "count": 15,
+            "approximate": true,
+            "maxHeight": {
+              "value": 50,
+              "unit": "ft"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "spirit",
+      "name": "Spirit",
+      "designation": "MER-A",
+      "missionType": "Rover",
+      "sourceIds": [
+        "spirit",
+        "mer"
+      ],
+      "site": {
+        "name": "Gusev Crater",
+        "context": "A giant impact crater that may once have contained a lake.",
+        "landingWaypointId": "gusev-landing"
+      },
+      "dates": [
+        {
+          "event": "Landing",
+          "date": "2004-01-03",
+          "basis": "PST",
+          "sourceIds": [
+            "spirit"
+          ]
+        },
+        {
+          "event": "Last contact",
+          "date": "2010-03-22",
+          "basis": null,
+          "sourceIds": [
+            "spirit"
+          ]
+        },
+        {
+          "event": "Formal mission closure",
+          "date": "2011-05-25",
+          "basis": null,
+          "sourceIds": [
+            "spirit"
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "text": "Spirit was designed as a robotic field geologist.",
+          "sourceIds": [
+            "mer"
+          ]
+        }
+      ],
+      "discoveries": [
+        {
+          "text": "Together, Spirit and Opportunity found evidence that water persisted on the Martian surface in ancient times.",
+          "sourceIds": [
+            "mer"
+          ]
+        }
+      ],
+      "distanceTraveled": [
+        {
+          "id": "mission-total",
+          "kind": "roverOdometer",
+          "values": [
+            {
+              "value": 7.73,
+              "unit": "km"
+            },
+            {
+              "value": 4.8,
+              "unit": "mi"
+            }
+          ],
+          "approximate": true,
+          "sourceIds": [
+            "spirit"
+          ]
+        },
+        {
+          "id": "early-ne-leg",
+          "kind": "plannedLeg",
+          "values": [
+            {
+              "value": 250,
+              "unit": "m"
+            },
+            {
+              "value": 820,
+              "unit": "ft"
+            }
+          ],
+          "approximate": true,
+          "sourceIds": [
+            "mer"
+          ]
+        },
+        {
+          "id": "early-crater-width",
+          "kind": "craterDiameter",
+          "values": [
+            {
+              "value": 200,
+              "unit": "m"
+            }
+          ],
+          "approximate": true,
+          "sourceIds": [
+            "mer"
+          ]
+        },
+        {
+          "id": "early-hills-estimate",
+          "kind": "landmarkSeparation",
+          "values": [
+            {
+              "value": 3,
+              "unit": "km"
+            }
+          ],
+          "approximate": true,
+          "sourceIds": [
+            "mer"
+          ]
+        }
+      ],
+      "waypoints": [
+        {
+          "id": "gusev-landing",
+          "name": "Gusev landing site",
+          "kind": "landingSite",
+          "coordinates": {
+            "latDeg": 14.5692,
+            "latHemisphere": "S",
+            "lonDeg": 175.4729,
+            "lonHemisphere": "E"
+          },
+          "sourceIds": [
+            "spirit"
+          ]
+        },
+        {
+          "id": "early-crater",
+          "name": "Crater northeast of the lander (early plan)",
+          "kind": "crater",
+          "coordinates": null,
+          "sourceIds": [
+            "mer"
+          ]
+        },
+        {
+          "id": "bonneville",
+          "name": "Bonneville Crater",
+          "kind": "crater",
+          "coordinates": null,
+          "sourceIds": [
+            "spirit",
+            "spiritMap"
+          ]
+        },
+        {
+          "id": "columbia-hills",
+          "name": "Columbia Hills",
+          "kind": "hills",
+          "coordinates": null,
+          "sourceIds": [
+            "mer",
+            "spiritMap"
+          ]
+        }
+      ],
+      "traversePaths": [
+        {
+          "id": "early-plan",
+          "name": "Early route plan",
+          "kind": "plannedDrive",
+          "geometry": "schematic",
+          "waypointIds": [
+            "gusev-landing",
+            "early-crater",
+            "columbia-hills"
+          ],
+          "distanceIds": [
+            "early-ne-leg",
+            "early-crater-width",
+            "early-hills-estimate"
+          ],
+          "sourceIds": [
+            "mer"
+          ],
+          "bounce": null
+        },
+        {
+          "id": "gusev-drive",
+          "name": "Landing site to Columbia Hills",
+          "kind": "roverDrive",
+          "geometry": "schematic",
+          "waypointIds": [
+            "gusev-landing",
+            "bonneville",
+            "columbia-hills"
+          ],
+          "distanceIds": [],
+          "sourceIds": [
+            "spirit",
+            "spiritMap"
+          ],
+          "bounce": null
+        }
+      ]
+    },
+    {
+      "id": "opportunity",
+      "name": "Opportunity",
+      "designation": "MER-B",
+      "missionType": "Rover",
+      "sourceIds": [
+        "opportunity",
+        "mer"
+      ],
+      "site": {
+        "name": "Meridiani Planum",
+        "context": "Mineral deposits in these plains pointed to a wet history.",
+        "landingWaypointId": "eagle-landing"
+      },
+      "dates": [
+        {
+          "event": "Landing",
+          "date": "2004-01-24",
+          "basis": "PST",
+          "sourceIds": [
+            "opportunity"
+          ]
+        },
+        {
+          "event": "Last communication",
+          "date": "2018-06-10",
+          "basis": null,
+          "sourceIds": [
+            "opportunity"
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "text": "Opportunity formerly held the off-Earth rover distance record.",
+          "sourceIds": [
+            "opportunity"
+          ]
+        }
+      ],
+      "discoveries": [
+        {
+          "text": "Together, Spirit and Opportunity found evidence that water persisted on the Martian surface in ancient times.",
+          "sourceIds": [
+            "mer"
+          ]
+        }
+      ],
+      "distanceTraveled": [
+        {
+          "id": "mission-total",
+          "kind": "roverOdometer",
+          "values": [
+            {
+              "value": 45.16,
+              "unit": "km"
+            },
+            {
+              "value": 28.06,
+              "unit": "mi"
+            }
+          ],
+          "approximate": false,
+          "sourceIds": [
+            "opportunity"
+          ]
+        },
+        {
+          "id": "crater-separation",
+          "kind": "landmarkSeparation",
+          "values": [
+            {
+              "value": 750,
+              "unit": "m"
+            }
+          ],
+          "approximate": true,
+          "sourceIds": [
+            "opportunity"
+          ]
+        }
+      ],
+      "waypoints": [
+        {
+          "id": "eagle-landing",
+          "name": "Landing outcrop, Eagle Crater",
+          "kind": "landingSite",
+          "coordinates": {
+            "latDeg": 1.9483,
+            "latHemisphere": "S",
+            "lonDeg": 354.47417,
+            "lonHemisphere": "E"
+          },
+          "sourceIds": [
+            "opportunity",
+            "mer"
+          ]
+        },
+        {
+          "id": "eagle-exit",
+          "name": "Eagle Crater exit",
+          "kind": "craterExit",
+          "coordinates": null,
+          "sourceIds": [
+            "opportunity"
+          ]
+        },
+        {
+          "id": "endurance",
+          "name": "Endurance Crater",
+          "kind": "crater",
+          "coordinates": null,
+          "sourceIds": [
+            "opportunity"
+          ]
+        }
+      ],
+      "traversePaths": [
+        {
+          "id": "eagle-to-endurance",
+          "name": "Eagle Crater to Endurance Crater",
+          "kind": "roverDrive",
+          "geometry": "schematic",
+          "waypointIds": [
+            "eagle-landing",
+            "eagle-exit",
+            "endurance"
+          ],
+          "distanceIds": [
+            "crater-separation"
+          ],
+          "sourceIds": [
+            "opportunity",
+            "mer"
+          ],
+          "bounce": null
+        }
+      ]
+    }
+  ]
+}
