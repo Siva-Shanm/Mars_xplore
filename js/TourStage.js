@@ -185,6 +185,7 @@ export class TourStage {
     this.planVisible = false
     this.outlines = {}
     this.anchors = {}
+    this.proxies = {} // invisible, generous tap targets for required interactions
     this._build()
     this._buildRoverTimeline()
   }
@@ -300,6 +301,25 @@ export class TourStage {
     return pts
   }
 
+  /** Invisible pick proxy (material.visible = false still raycasts). */
+  _proxy(name, geo, pos, scene = this.scene, scale = null) {
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false }))
+    m.position.copy(pos)
+    if (scale) m.scale.copy(scale)
+    m.userData.tapTarget = name
+    scene.add(m)
+    this.proxies[name] = m
+    return m
+  }
+
+  /** True if the ray hits the named interaction target in the active scene. */
+  hitTest(name, raycaster) {
+    const m = this.proxies[name]
+    if (!m || m.parent !== this.activeScene) return false
+    m.updateMatrixWorld(true)
+    return raycaster.intersectObject(m, false).length > 0
+  }
+
   /** Highlight shell for the emphasised object: a cyan outline + emissive pulse. */
   _outline(name, mesh, scale = 1.14) {
     const shell = new THREE.Mesh(mesh.geometry, new THREE.MeshBasicMaterial({ color: 0x5ff4ff, side: THREE.BackSide, transparent: true, opacity: 0 }))
@@ -407,6 +427,7 @@ export class TourStage {
     this._outline('pebble', peb, 1.18)
     this.pebble = peb
     this.anchors.pebble = peb.position.clone()
+    this._proxy('pebble', new THREE.SphereGeometry(0.42, 12, 8), peb.position)
 
     // Magnified dust sample (separate illustration scene).
     this._buildDustSample()
@@ -478,6 +499,8 @@ export class TourStage {
     }
     magnet.position.set(1.9, 0, 0)
     s.add(magnet)
+    this.magnetArc = arc
+    this._proxy('magnet', new THREE.SphereGeometry(0.75, 12, 8), magnet.position, s)
     this.dust.magnet = magnet
     this.dust.poles = [new THREE.Vector3(1.62, 0.42, 0), new THREE.Vector3(1.62, -0.42, 0)]
   }
@@ -542,6 +565,7 @@ export class TourStage {
     this.scene.add(spec)
     this._outline('specimen', spec, 1.1)
     this.anchors.specimen = spec.position.clone()
+    this._proxy('specimen', new THREE.SphereGeometry(0.95, 12, 8), spec.position)
 
     // Later in the mission: soft-soil patch, separate location (no connecting track).
     const lh = (x, z) => lateHeight.sp(x - LATE.x, z - LATE.z)
@@ -636,6 +660,14 @@ export class TourStage {
     this.anchors.eagleExit = new THREE.Vector3(5.6, this.h(5.6, -2.4) + 1.2, -2.4)
     this.anchors.eagleCrater = new THREE.Vector3(0, this.h(0, 0) + 0.5, 0)
     this.anchors.endurance = new THREE.Vector3(40, this.h(40, -12) + 1.5, -12)
+    this._proxy('outcrop', new THREE.SphereGeometry(1.5, 12, 8), this.anchors.outcrop)
+    this._proxy('eagleCrater', new THREE.SphereGeometry(1, 16, 8), new THREE.Vector3(0, -0.6, 0), this.scene, new THREE.Vector3(6.6, 1.6, 6.6))
+    // Rim highlight shown while the visitor is asked to look back at Eagle Crater.
+    const rimPts = []
+    for (let i = 0; i <= 120; i++) { const a = (i / 120) * Math.PI * 2; const x = Math.cos(a) * 6; const z = Math.sin(a) * 6; rimPts.push(new THREE.Vector3(x, this.h(x, z) + 0.25, z)) }
+    this.rimRing = revealTube(rimPts, 0x5ff4ff, 0.09, 0.9)
+    this.rimRing.visible = false
+    this.scene.add(this.rimRing)
 
     // Later: Perseverance Valley (separate location) with an illustrated dust storm.
     const lh = (x, z) => lateHeight.op(x - LATE.x, z - LATE.z)
@@ -885,7 +917,10 @@ export class TourStage {
     }
     const c = fs.cue
     // Reduced motion: each cue shows its still composition (its settled end state).
-    const τ = fs.reduced ? Math.max(0, c.duration - 0.05) : fs.τ
+    // Reduced motion: still compositions. Before a checkpoint is passed, the still shows the
+    // checkpoint moment so no result is revealed ahead of the visitor's action.
+    let τ = fs.τ
+    if (fs.reduced) τ = c.checkpoint && fs.τ <= c.checkpoint.atRel + 1e-3 ? c.checkpoint.atRel : Math.max(0, c.duration - 0.05)
     const t = c.start + τ
     const st = { s: this.roverS(t) }
 
@@ -925,15 +960,31 @@ export class TourStage {
     this.anchors.rover = rp.clone().add(_v.set(0, (this.rover.dims.height || 0.5) + 0.25, 0))
 
     // Emphasis outlines: brief pulse, then a steady highlight.
+    // While a required interaction waits, its target pulses (static in reduced motion).
+    const waitT = fs.waiting?.target
+    const pulse = fs.reduced ? 1 : 0.5 + 0.5 * Math.sin(performance.now() / 1000 * 5)
     for (const [name, shell] of Object.entries(this.outlines)) {
       const on = c.emphasis?.target === name && τ >= (c.emphasis.at ?? 0)
       const k = on ? (fs.reduced ? 1 : 0.55 + 0.45 * Math.cos((τ - c.emphasis.at) * 4) * Math.exp(-(τ - c.emphasis.at) * 0.6)) : 0
+      if (waitT === name) {
+        shell.material.opacity = 0.45 + 0.5 * pulse
+        shell.parent.material.emissiveIntensity = 0.35 + 0.6 * pulse
+        continue
+      }
       shell.material.opacity = on ? clamp(0.35 + 0.45 * k, 0, 0.85) : 0
       shell.parent.material.emissiveIntensity = on ? 0.6 * k : 0
     }
     if (this.outcrop) {
       const on = c.emphasis?.target === 'outcrop' || c.id === 'op-outcrop'
-      this.outcrop.material.emissiveIntensity = on ? (fs.reduced ? 0.5 : 0.35 + 0.25 * Math.sin(τ * 3)) : 0
+      this.outcrop.material.emissiveIntensity = waitT === 'outcrop' ? 0.3 + 0.7 * pulse : on ? (fs.reduced ? 0.5 : 0.35 + 0.25 * Math.sin(τ * 3)) : 0
+    }
+    if (this.rimRing) {
+      this.rimRing.visible = waitT === 'eagleCrater'
+      this.rimRing.material.opacity = 0.45 + 0.5 * pulse
+    }
+    if (this.magnetArc) {
+      this.magnetArc.material.emissive?.setHex(0x5ff4ff)
+      this.magnetArc.material.emissiveIntensity = waitT === 'magnet' ? 0.15 + 0.45 * pulse : 0
     }
 
     // Lighting / sky mood
@@ -1021,9 +1072,10 @@ export class TourStage {
   _applyDust(c, τ, reduced) {
     const d = this.dust
     const on = c.id === 'pf-dust'
-    const magnetAt = (c.speakStart ?? 0) - c.start + 2.0
-    const k = on ? (reduced ? 1 : span(τ, magnetAt, magnetAt + 3.0)) : 0
-    d.magnet.scale.setScalar(on ? Math.max(0.001, reduced ? 1 : span(τ, magnetAt - 1.6, magnetAt - 0.6)) : 0.001)
+    // The magnet switches on only after the visitor taps it (the checkpoint), else 2 s into the line.
+    const magnetAt = c.checkpoint ? c.checkpoint.atRel + 0.25 : (c.speakStart ?? 0) - c.start + 2.0
+    const k = on ? (reduced ? (τ >= magnetAt ? 1 : 0) : span(τ, magnetAt, magnetAt + 3.0)) : 0
+    d.magnet.scale.setScalar(on ? Math.max(0.001, reduced ? (τ >= magnetAt - 1.6 ? 1 : 0.001) : span(τ, magnetAt - 1.6, magnetAt - 0.6)) : 0.001)
     for (let i = 0; i < d.N; i++) {
       const b = d.base[i]
       const ph = d.phase[i]

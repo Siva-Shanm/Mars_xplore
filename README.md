@@ -14,7 +14,7 @@ On Windows use `py -m http.server 8000`. Then open <http://localhost:8000/>. Alw
 
 Runtime dependencies come from jsDelivr through the import map in `index.html` (`three@0.180.0` and `gsap@3.13.0`). Everything else is local.
 
-**Updating a running copy:** browsers cache JavaScript from simple static servers. `index.html` therefore loads every local module and the stylesheet with a version tag (`?v=3`, applied to all local modules through the import map). When you change any file in `js/` or `css/`, bump that number everywhere it appears in `index.html`, and update the "Version" line in the footer. To check which version a browser is running, read the footer line, for example "Version 3 · Neo’s guided expedition".
+**Updating a running copy:** browsers cache JavaScript from simple static servers. `index.html` therefore loads every local module and the stylesheet with a version tag (`?v=4`, applied to all local modules through the import map). When you change any file in `js/` or `css/`, bump that number everywhere it appears in `index.html`, and update the "Version" line in the footer. To check which version a browser is running, read the footer line, for example "Version 4 · Neo speaks and waits for you".
 
 ## Structure
 
@@ -101,7 +101,7 @@ Results from the MER loader's validation report, which `?debug` exposes as `wind
 
 **Explore with Neo** is the primary entry action: 52 px tall with a primary fill, and the description directly below it is linked with `aria-describedby`. **Explore the globe** remains the secondary action. Each mission's panel offers **Watch with Neo** for that chapter alone, and the navigator still opens any mission manually.
 
-**Flow.** One press plays the intro on the globe (Neo greets, then the camera flies to Ares Vallis) and then the whole Pathfinder & Sojourner chapter, with no required clicks. Each chapter ends on its record, offering **Next rover** and **Explore the globe**. Opportunity's record offers **Finish the expedition**, which plays the closing line on the globe and highlights all three sites.
+**Flow.** One press plays the intro on the globe (Neo greets, then the camera flies to Ares Vallis) and then the whole Pathfinder & Sojourner chapter. (Version 4 adds required taps at five checkpoints; see below.) Each chapter ends on its record, offering **Next rover** and **Explore the globe**. Opportunity's record offers **Finish the expedition**, which plays the closing line on the globe and highlights all three sites.
 
 **Neo.** Neo is built entirely in Three.js from lathe, sphere and torus meshes. There are no image files, rigs or clips at runtime.
 - **References:** proportions come from `Neospritesheet2.jpeg` (front, side, back) and expressions and gestures from `Neospritesheet1.jpeg`.
@@ -159,6 +159,55 @@ To enable a gate, set it to `true` under `approvals` in `data/tour.json`; `op-im
 **Data.** Spoken lines live verbatim in `data/tour.json`, which a unit test checks against the script. Every number on screen is resolved from `data/rovers.json` by key. New sourced records were added from the allowlisted Spirit and Opportunity pages:
 - Spirit: Columbia Hills rocks altered by water.
 - Ending facts: Spirit stuck in soft soil, and its panels could not be tilted toward the winter Sun; Opportunity in Perseverance Valley during the Mars-wide dust storm.
+
+## Version 4: Neo speaks, and waits for you
+
+This release supersedes the earlier rule that visitors must never be required to click inside a chapter.
+
+**Neo's words in a speech bubble.** While a line is active, it appears in a comic-style bubble attached to Neo's corner inside the view.
+- **Look:** dark text on white with a tail pointing at Neo, a maximum width, and placement that tries narrower widths rather than cover the rover or the highlighted object.
+- **Reveal:** the text appears progressively in step with the line, and never trails the voice (it uses speech boundary events when available). Reduced motion shows the full line at once.
+- **Timing:** the bubble appears when the line starts, stays through the reading hold, and fades between lines.
+- **Docking:** if the stage is narrower than 600 px, if every placement would cover the subject, or if there is no 3D view, it docks as a "Neo" caption strip directly under the canvas.
+- **Accessibility:** the bubble is `aria-hidden`, so screen readers hear the line once, from `#tour-line`.
+- **Mouth:** Neo's mouth moves only while words are visibly being delivered (audio playing, or the bubble revealing the line). It never moves while paused, inspecting, or waiting at a checkpoint.
+
+**Voice on by default.**
+- **Unlocking:** the Explore with Neo or Watch with Neo click unlocks speech inside the gesture (a silent `speak()`), so browsers allow later lines.
+- **Sound toggle:** "🔊 Sound on / 🔇 Sound off" sits beside Neo in the view and is mirrored in the control strip. The choice is remembered in `localStorage` under `marsxplore.neoSound`.
+- **Voices:** one English voice is chosen once and kept, handling late `voiceschanged` and Chrome's empty first `getVoices()`.
+- **Failures:** if speech is unsupported, errors, or never starts within 2.5 s, a one-time note says "Narration audio isn't available in this browser. Neo's words appear in the speech bubble." Timed captions continue. Speech still only holds a cue for a bounded time.
+
+**Required interaction checkpoints.** Five cues now stop the playhead, not as a Pause, after Neo's line, and wait for the visitor indefinitely:
+
+| Cue | Prompt | What the tap does |
+| --- | --- | --- |
+| `pf-pebble-look` | Tap the pebble! | Close-up inspection, then Continue into the rounded-edge reveal |
+| `pf-dust` | Tap the magnet to switch it on! | The magnet switches on and the dust gathers at its poles |
+| `sp-rock` | Tap the rock! | Close-up of the altered specimen |
+| `op-outcrop` | Tap the outcrop! | Close-up; the shared MER conclusion card appears only afterwards |
+| `op-eagle` | Look back at Eagle Crater! | Look-back view from the rim; the drive to Endurance starts only afterwards |
+
+- **While waiting:**
+  - Neo points at the object with his mouth closed, and his bubble shows the prompt.
+  - The object pulses: an outline glow, emissive pulse, or, for Eagle Crater, a rim ring.
+  - A 76 px hotspot with a pulsing ring, a tapping hand and a label follows the object across the view. When the object is off screen or occluded, the hotspot docks as a large labelled button in the view.
+  - The canvas shows a pointer cursor over the object.
+- **Three ways to act, all running the same action:**
+  - tapping the 3D object (raycast against that object's pick proxy only, so globe picking is unchanged)
+  - tapping the hotspot
+  - Enter or Space on the hotspot, which receives focus when the checkpoint opens; the prompt is announced once
+- **After the tap:** inspections show **Continue the tour ▶** inside the view, and dragging to look around is optional. Escape also continues.
+- **Skipping:** Previous/Next stop and the scrubber still work. Seeking past a checkpoint counts as skipping it, and seeking back before it asks again.
+- **Reduced motion:** a static highlight and still compositions that never reveal a result before the tap.
+- **Without WebGL:** the same checkpoint becomes a required "Inspect the pebble" button, with the bubble docked.
+- **Gated cues:** the pending `op-outcrop` checkpoint uses its fallback visual.
+
+**Everything to act on is inside the view (the "video player").**
+- **Transport bar:** ⏮ Previous stop, ⏸ Pause / ▶ Resume, ⏭ Next stop and ✕ Globe, placed on the side away from Neo.
+- **Contextual actions:** the hotspot, any optional Inspect button, Continue the tour, and the sound toggle.
+- **Chapter record:** Next rover / Finish the expedition, Explore the globe, and Replay chapter, as a centred card.
+- **The strip below:** keeps the full caption, scrubber, stop list (checkpoint stops are marked "👆 your turn"), sources, Replay line and the same transport.
 
 ## Model registration (verified)
 
@@ -254,6 +303,35 @@ Exercised with Playwright in headless Chromium (SwiftShader software WebGL), ser
 - **Playhead (silent):** Pathfinder 2:17 (2:32 with the intro), Spirit 2:04, Opportunity 2:02, closing 0:22. With narration on, a cue can extend by up to 60% of its line plus 4 s if the voice runs long.
 - **Wall clock:** in this headless software-rendering environment the 152 s Pathfinder run took 302 s. The frame rate is low and the clock advances at most 0.1 s per frame, so this is an environment limit, not the intended pace. Timing on real hardware is still to be measured.
 
+### Version 4 QA (speech bubble, voice, checkpoints, in-view controls)
+
+Exercised with Playwright in headless Chromium (SwiftShader), over HTTP and under the `/Mars_xplore/` subpath, with a fake speech engine standing in for real voices. **37 of 37 version 4 checks passed.** The 29-check globe suite and the still-applicable version 3 groups (35 checks) pass again.
+
+- **Bubble and voice:**
+  - The click on Explore with Neo unlocks speech inside the gesture, and sound is on by default.
+  - The bubble beside Neo reveals the line progressively. It is `aria-hidden`, and `#tour-line` keeps the full caption.
+  - The voice speaks each line once. The mouth moves only while a line is being delivered, and stops when paused or between lines.
+  - Mute is mirrored in the strip and remembered after reload.
+  - A throwing voice and missing speech support both show the one-time note while the bubble continues.
+- **Checkpoints:**
+  - The playhead stops (not a Pause) and waits; the timestamp is unchanged after 3.5 s.
+  - The hotspot is 76 px, labelled, focused and pulsing. Neo points with his mouth closed and the bubble says "Tap the pebble!". The pebble glows.
+  - The reveal does not play while waiting.
+  - A pointer cursor appears over the 3D pebble, and tapping it opens the close-up. Continue resumes into the reveal, which then plays.
+  - Enter on the focused hotspot switches the magnet on, and 149 particles gather at the poles.
+  - Next stop while waiting skips the checkpoint; seeking back asks again. A hotspot click opens the rock close-up, and Escape continues.
+- **Full chapter:** one press plus one tap at each of the two checkpoints played the whole Pathfinder chapter (154 s of playhead, 242 s wall clock in software rendering) to the in-view record. Both checkpoints waited until tapped, and there were no page errors.
+- **In view:**
+  - The transport bar, record, hotspot, Inspect/Continue, sound toggle and bubble are all inside the stage.
+  - Next rover from the in-view record starts Spirit, and ✕ Globe returns to the globe.
+  - A real bug was found and fixed: the in-view bar covered the "Retry 3D view" button after a WebGL loss. The message now sits mid-view.
+- **Reduced motion:** the checkpoint still waits, the hotspot is static, and the full bubble text appears at once.
+- **No WebGL:** a required "Inspect the pebble" button and a docked bubble, and pressing the button continues.
+- **Phone (iPhone 13):** the bubble docks under the canvas and the transport bar becomes icon-only on the side away from Neo, with Sound above Neo. Touch taps on the hotspot and Continue work, and there is no overflow.
+- **Regression:** rapid chapter switching leaves one playhead and one stage. A hidden tab pauses and cancels speech. The subpath loads the v4 modules.
+
+**Still to check on real devices:** real voices in Chrome, Edge, Safari/iOS and Firefox (only a fake engine was used here), the audio unlock on iOS Safari specifically, and the hotspot's tap feel on a physical phone.
+
 **Not yet verified** (needs real hardware or a person):
 
 - Frame rate on the demo laptop and phone (targets: 60 / 30 FPS), especially in the close-up. Record device, browser, asset size and FPS here. The MER GLB is 11.9 MB with 12 PNG textures (~10 MB); a compressed derivative would cut load time, but the original is used unchanged here.
@@ -269,7 +347,7 @@ Exercised with Playwright in headless Chromium (SwiftShader software WebGL), ser
 - **Mouse:** drag to orbit, wheel to zoom, right-drag to pan.
 - **Touch:** one finger to orbit, pinch to zoom, two-finger drag to pan.
 - **Keyboard:** with the globe focused, arrow keys pan and Shift + arrows orbit. The toolbar has Reset, Zoom ±, Pause motion and the surface toggle.
-- **Escape** closes an inspection, then leaves Neo's tour, then closes the panel.
+- **Escape** continues from an inspection, then leaves Neo's tour, then closes the panel.
 - **Development only:** `?debug` exposes `window.__globe`, `window.__guide` and `window.__roverReport` for automated checks.
 
 ## Hosting

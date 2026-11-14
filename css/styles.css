@@ -522,3 +522,150 @@ h1 { margin: 0; font-size: clamp(1.25rem, 2.4vw, 1.7rem); letter-spacing: 0.01em
   .cmp-fill { transition: none; }
   .btn-inspect { animation: none; }
 }
+
+/* ======================================================================
+   Version 4: Neo's speech bubble, in-view actions and required checkpoints
+   ====================================================================== */
+
+/* Speech bubble attached to Neo's corner (aria-hidden; #tour-line is the accessible caption). */
+.neo-bubble {
+  position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none;
+  padding: 10px 14px 12px; border-radius: 16px;
+  background: #fbfdff; color: #0b1626; border: 2px solid #12284a;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+  font-size: 1rem; line-height: 1.4; font-weight: 550;
+  animation: bubble-in 220ms var(--ease);
+}
+.neo-bubble::after {
+  content: ""; position: absolute; bottom: -12px; width: 18px; height: 18px;
+  background: #fbfdff; border-right: 2px solid #12284a; border-bottom: 2px solid #12284a;
+  transform: rotate(45deg); right: 26px;
+}
+.neo-bubble[data-side="left"]::after { right: auto; left: 26px; }
+.neo-bubble-name { display: block; font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: #1b5f86; font-weight: 800; margin-bottom: 2px; }
+.neo-bubble.is-prompt { background: #fff6dc; border-color: #8a5a00; }
+.neo-bubble.is-prompt::after { background: #fff6dc; border-color: #8a5a00; }
+.neo-bubble.is-prompt .neo-bubble-text { font-size: 1.12rem; font-weight: 800; color: #3a2500; }
+@keyframes bubble-in { from { opacity: 0; transform-origin: bottom; } to { opacity: 1; } }
+
+/* Docked caption strip directly under the canvas (narrow screens, or when the bubble would cover the subject). */
+.neo-dock {
+  display: flex; gap: 10px; align-items: baseline; margin-top: -4px;
+  padding: 10px 14px; border-radius: 0 0 12px 12px;
+  background: #fbfdff; color: #0b1626; border: 2px solid #12284a; border-top: 0;
+  font-size: 1rem; line-height: 1.4; font-weight: 550; min-height: 3.2em;
+}
+.neo-dock .neo-bubble-name { flex: none; margin: 0; }
+.neo-dock.is-prompt { background: #fff6dc; border-color: #8a5a00; }
+.neo-dock.is-prompt .neo-dock-text { font-weight: 800; color: #3a2500; }
+
+/* Sound toggle by Neo's corner, and the one-time audio note. */
+.neo-sound {
+  position: absolute; left: 0; top: 0; z-index: 7; min-height: 40px; padding: 6px 12px; cursor: pointer;
+  border-radius: 999px; font-size: 0.85rem; font-weight: 650;
+  background: rgba(8, 12, 18, 0.88); color: #eaf9ff; border: 1px solid var(--accent);
+}
+.neo-sound[aria-pressed="false"] { border-color: var(--line); color: var(--text-dim); }
+.neo-audio-note {
+  position: absolute; left: 50%; top: 46px; transform: translateX(-50%); z-index: 8; margin: 0;
+  max-width: min(460px, calc(100% - 24px)); padding: 8px 12px; border-radius: 10px; font-size: 0.85rem;
+  background: rgba(8, 12, 18, 0.94); border: 1px solid var(--warn); color: #ffe2b8;
+}
+
+/* Required checkpoint: big tap hotspot over the object, with a pulsing ring and a hand. */
+.tour-hotspot {
+  position: absolute; left: 0; top: 0; z-index: 6; width: 76px; height: 76px; margin: -38px 0 0 -38px; padding: 0;
+  border-radius: 50%; border: 0; background: transparent; cursor: pointer; pointer-events: auto;
+}
+.hotspot-ring {
+  position: absolute; inset: 0; border-radius: 50%; border: 4px solid #ffc35c;
+  background: rgba(255, 195, 92, 0.18); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45), 0 0 24px rgba(255, 195, 92, 0.7);
+  animation: hotspot-pulse 1.3s ease-in-out infinite;
+}
+.hotspot-hand {
+  position: absolute; width: 38px; height: 38px; right: -18px; bottom: -22px; fill: #fff; stroke: #12284a; stroke-width: 1.4;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6)); animation: hotspot-tap 1.3s ease-in-out infinite;
+}
+.hotspot-label {
+  position: absolute; left: 50%; top: calc(100% + 16px); transform: translateX(-50%); white-space: nowrap;
+  padding: 6px 12px; border-radius: 999px; font-size: 0.95rem; font-weight: 800;
+  background: #ffc35c; color: #2a1a00; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+.tour-hotspot:focus-visible { outline: none; }
+.tour-hotspot:focus-visible .hotspot-ring { outline: 4px solid #fff; outline-offset: 4px; }
+@keyframes hotspot-pulse { 50% { transform: scale(1.18); background: rgba(255, 195, 92, 0.32); } }
+@keyframes hotspot-tap { 0%, 100% { transform: translate(0, 0); } 45% { transform: translate(-8px, -8px) scale(0.92); } }
+/* Docked: target off screen/occluded, or no 3D view — a large labelled button in the view. */
+.tour-hotspot.is-docked {
+  left: 50%; top: auto; bottom: 74px; width: auto; height: auto; margin: 0; transform: translateX(-50%) !important;
+  display: inline-flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 22px 10px 16px;
+  border-radius: 999px; background: #ffc35c; color: #2a1a00; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+  animation: hotspot-pulse 1.3s ease-in-out infinite;
+}
+.tour-hotspot.is-docked .hotspot-ring { display: none; }
+.tour-hotspot.is-docked .hotspot-hand { position: static; width: 30px; height: 30px; fill: #2a1a00; stroke: none; filter: none; }
+.tour-hotspot.is-docked .hotspot-label { position: static; transform: none; padding: 0; background: none; box-shadow: none; font-size: 1.05rem; }
+.globe-stage.is-waiting .tour-banner { border-color: #ffc35c; }
+
+/* In-view actions: optional inspect, and Continue after a close look. */
+.stage-action {
+  position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); z-index: 6;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; max-width: calc(100% - 24px);
+}
+.stage-action .btn { min-height: 48px; padding: 10px 20px; font-size: 1rem; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); }
+.btn-continue { font-weight: 800; }
+.stage-note { padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; background: rgba(8, 12, 18, 0.88); color: var(--text); }
+
+/* Transport bar inside the view, on the side away from Neo. */
+.stage-hud {
+  position: absolute; bottom: 12px; z-index: 6; display: flex; gap: 6px; padding: 6px; border-radius: 14px;
+  background: rgba(8, 12, 18, 0.82); border: 1px solid var(--line); backdrop-filter: blur(4px);
+}
+.stage-hud[data-side="right"] { left: 12px; }
+.stage-hud[data-side="left"] { right: 12px; }
+.stage-hud:not([data-side]) { left: 12px; }
+.hud-btn { min-width: 44px; min-height: 44px; padding: 6px 12px; cursor: pointer; border-radius: 10px; font-size: 0.95rem; font-weight: 650; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+.hud-btn:hover { border-color: var(--accent); }
+.hud-play { min-width: 104px; border-color: var(--accent); }
+
+/* Chapter record inside the view. */
+.stage-end {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 9;
+  width: min(460px, calc(100% - 24px)); padding: 18px; text-align: center;
+  background: rgba(8, 14, 22, 0.95); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+.stage-end .tour-end-actions { justify-content: center; }
+
+/* Cards sit on the side away from Neo. */
+.tour-cards[data-side="right"] { right: auto; left: 10px; }
+.tour-cards[data-side="left"] { left: auto; right: 10px; }
+
+.stop-tap { margin-left: 4px; font-size: 0.72rem; color: #ffd27a; }
+
+@media (max-width: 600px) {
+  .tour-hotspot.is-docked { bottom: 70px; max-width: calc(100% - 24px); }
+  .stage-action { bottom: 70px; }
+  .hud-btn { padding: 6px 10px; }
+  .hud-play { min-width: 92px; }
+  .neo-sound { font-size: 0.78rem; padding: 4px 10px; }
+  .tour-cards[data-side] { left: 10px; right: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hotspot-ring, .hotspot-hand, .tour-hotspot.is-docked { animation: none; }
+  .neo-bubble { animation: none; }
+}
+.motion-paused .hotspot-ring, .motion-paused .hotspot-hand { animation-play-state: paused; }
+.neo-tag.is-covered { visibility: hidden; }
+/* The 3D-unavailable message (with Retry) sits mid-view, above the in-view controls. */
+.stage-message { inset: auto 16px auto 16px; top: 50%; transform: translateY(-50%); z-index: 10; }
+@media (max-width: 600px) {
+  .hud-txt { display: none; }
+  .hud-play { min-width: 48px; }
+  .stage-hud { gap: 4px; padding: 4px; bottom: 10px; }
+  .stage-hud[data-side="right"] { left: 8px; right: auto; }
+  .stage-hud[data-side="left"] { right: 8px; left: auto; }
+  .neo-tag.is-narrow { display: none; }
+}
+@media (max-width: 600px) {
+  .neo-audio-note { top: 8px; left: 8px; right: 8px; transform: none; max-width: none; padding: 4px 8px; font-size: 0.72rem; line-height: 1.3; }
+}

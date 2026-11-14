@@ -209,14 +209,18 @@
           "anchor": "pebble"
         }
       ],
-      "inspect": {
-        "label": "Inspect pebble",
-        "target": "pebble",
-        "at": 8.0
-      },
       "sourceIds": [
         "pathfinder"
-      ]
+      ],
+      "interaction": {
+        "required": true,
+        "kind": "inspect",
+        "target": "pebble",
+        "prompt": "Tap the pebble!",
+        "label": "Tap the pebble to inspect it",
+        "fallbackLabel": "Inspect the pebble",
+        "at": "afterLine"
+      }
     },
     {
       "id": "pf-pebble-reveal",
@@ -259,7 +263,7 @@
       "title": "Magnetic dust",
       "text": "Some of the dust floating in the Martian air was magnetic. Watch what happens in this illustration.",
       "lead": 6.0,
-      "hold": 5.0,
+      "hold": 7.0,
       "shot": "dust",
       "cutAt": 4.5,
       "rover": [
@@ -291,7 +295,7 @@
           ]
         },
         {
-          "at": 8.5,
+          "at": 14.6,
           "key": "pfDustMagnetic",
           "anchor": "magnet"
         }
@@ -299,7 +303,16 @@
       "banner": "Illustration · not to scale",
       "sourceIds": [
         "pathfinder"
-      ]
+      ],
+      "interaction": {
+        "required": true,
+        "kind": "activate",
+        "target": "magnet",
+        "prompt": "Tap the magnet to switch it on!",
+        "label": "Tap the magnet to switch it on",
+        "fallbackLabel": "Switch on the magnet",
+        "at": "afterLine"
+      }
     },
     {
       "id": "pf-cloud",
@@ -522,14 +535,18 @@
           "anchor": "specimen"
         }
       ],
-      "inspect": {
-        "label": "Inspect rock",
-        "target": "specimen",
-        "at": 3.5
-      },
       "sourceIds": [
         "spirit"
-      ]
+      ],
+      "interaction": {
+        "required": true,
+        "kind": "inspect",
+        "target": "specimen",
+        "prompt": "Tap the rock!",
+        "label": "Tap the rock to inspect it",
+        "fallbackLabel": "Inspect the rock",
+        "at": "afterLine"
+      }
     },
     {
       "id": "sp-final",
@@ -654,11 +671,6 @@
         "side": "left",
         "nodAt": 5.0
       },
-      "inspect": {
-        "label": "Inspect outcrop",
-        "target": "outcrop",
-        "at": 2.5
-      },
       "fallback": {
         "title": "Landing outcrop",
         "lead": 3.0,
@@ -693,7 +705,16 @@
       ],
       "gatedSources": [
         "merHighlights"
-      ]
+      ],
+      "interaction": {
+        "required": true,
+        "kind": "inspect",
+        "target": "outcrop",
+        "prompt": "Tap the outcrop!",
+        "label": "Tap the outcrop to inspect it",
+        "fallbackLabel": "Inspect the outcrop",
+        "at": "afterLine"
+      }
     },
     {
       "id": "op-eagle",
@@ -701,7 +722,7 @@
       "title": "Out of Eagle Crater",
       "text": "That’s Eagle Crater behind us. See where we started? Opportunity climbed out and headed toward Endurance Crater.",
       "lead": 3.0,
-      "hold": 19.0,
+      "hold": 20.5,
       "shot": "climb",
       "rover": [
         {
@@ -713,8 +734,8 @@
         {
           "from": 3,
           "to": 5,
-          "start": 13.0,
-          "end": 28.5
+          "start": 15.0,
+          "end": 30.0
         }
       ],
       "neo": {
@@ -733,23 +754,27 @@
           ]
         },
         {
-          "at": 18.0,
+          "at": 20.0,
           "key": "opSeparation",
           "anchor": "endurance"
         }
       ],
-      "inspect": {
-        "label": "Look back",
-        "target": "eagleCrater",
-        "at": 9.0
-      },
       "still": {
         "mission": "opportunity",
         "index": 0
       },
       "sourceIds": [
         "opportunity"
-      ]
+      ],
+      "interaction": {
+        "required": true,
+        "kind": "inspect",
+        "target": "eagleCrater",
+        "prompt": "Look back at Eagle Crater!",
+        "label": "Look back at Eagle Crater",
+        "fallbackLabel": "Look back at Eagle Crater",
+        "at": 12.0
+      }
     },
     {
       "id": "op-distance",

@@ -626,8 +626,45 @@ export class GlobeRenderer {
       }
       nv.update({ ...fs.neo, target })
       nv.render(this.renderer, this.size)
-      this.cb.onNeoRect?.(nv.rect)
     }
+    // Screen positions for the HTML layer: the waiting target's hotspot, and the
+    // subject (rover / label anchor / target) the speech bubble must not cover.
+    const subjects = []
+    let hotspot = null
+    if (fs.view === 'surface' && stage) {
+      const project = (p, radius) => {
+        _c.copy(p).applyMatrix4(mainCam.matrixWorldInverse)
+        if (_c.z > -mainCam.near) return null
+        _p.copy(p).project(mainCam)
+        const on = Math.abs(_p.x) <= 0.92 && Math.abs(_p.y) <= 0.92
+        return { x: (_p.x + 1) * 0.5 * this.size.w, y: (1 - _p.y) * 0.5 * this.size.h, r: radius, on }
+      }
+      const rv = stage.roverScreen(this.size)
+      if (rv.r > 0) subjects.push(rv)
+      const focus = fs.waiting?.target || fs.label?.anchor || (fs.neo?.target !== 'viewer' && fs.neo?.target !== 'card' ? fs.neo?.target : null)
+      if (focus) {
+        const sp = project(stage.anchor(focus, new THREE.Vector3()), 36)
+        if (sp?.on) subjects.push(sp)
+      }
+      if (fs.waiting && !fs.inspect) {
+        const a = stage.anchor(fs.waiting.target, new THREE.Vector3())
+        const sp = project(a, 0)
+        hotspot = { x: sp?.x ?? 0, y: sp?.y ?? 0, visible: !!(sp && sp.on && !stage.occluded(a)) }
+      }
+    }
+    this.cb.onTourLayout?.({ neoRect: nv && fs.neo ? nv.rect : null, subjects, hotspot, size: this.size })
+  }
+
+  /** Did a canvas tap hit the target the tour is waiting for? */
+  _stageHit(clientX, clientY) {
+    const stage = this.tourStage
+    const target = this.tourFS?.waiting?.target
+    if (!stage || !target || this.tourFS.view !== 'surface') return false
+    const rect = this.renderer.domElement.getBoundingClientRect()
+    _ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1)
+    this._stageRay = this._stageRay || new THREE.Raycaster()
+    this._stageRay.setFromCamera(_ndc, stage.activeCamera)
+    return stage.hitTest(target, this._stageRay)
   }
 
   /** Active callout: {text, anchor} or null. */
@@ -759,15 +796,26 @@ export class GlobeRenderer {
       }
       const p = pointers.get(e.pointerId)
       if (p) p.moved = Math.max(p.moved, Math.hypot(e.clientX - p.x, e.clientY - p.y))
+      // Pointer cursor over the object the tour is waiting for (throttled raycast).
+      if (!p && this.view === 'tour' && this.tourFS?.waiting && !this.tourFS.inspect) {
+        const now = performance.now()
+        if (now - (this._hoverAt || 0) > 80) {
+          this._hoverAt = now
+          canvas.style.cursor = this._stageHit(e.clientX, e.clientY) ? 'pointer' : ''
+        }
+      } else if (!p && canvas.style.cursor === 'pointer') canvas.style.cursor = ''
     })
     const end = (e, cancelled) => {
       const p = pointers.get(e.pointerId)
       pointers.delete(e.pointerId)
-      const tap = p && !cancelled && p.primary && !multi && p.moved < 6 && !this.flight.active && this.view === 'globe'
+      const tapped = p && !cancelled && p.primary && !multi && p.moved < 6 && !this.flight.active
       if (pointers.size === 0) multi = false
-      if (tap) {
+      if (tapped && this.view === 'globe') {
         const id = this.pickAt(e.clientX, e.clientY)
         if (id) this.cb.onSelect?.(id, 'pointer', null)
+      } else if (tapped && this.view === 'tour' && this.tourFS?.waiting && !this.tourFS.inspect && this._stageHit(e.clientX, e.clientY)) {
+        canvas.style.cursor = ''
+        this.cb.onStageTap?.()
       }
     }
     canvas.addEventListener('pointerup', (e) => end(e, false))

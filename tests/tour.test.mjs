@@ -1,7 +1,7 @@
 // Development-only checks for Neo's tour data. Run: node tests/tour.test.mjs
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { buildTour, chapterRun, cueAt, activeLabel, activeCards } from '../js/tour.js'
+import { buildTour, chapterRun, cueAt, activeLabel, activeCards, checkpoints } from '../js/tour.js'
 import { validateRovers } from '../js/validate.js'
 
 const read = (f) => JSON.parse(readFileSync(new URL(`../data/${f}`, import.meta.url)))
@@ -58,4 +58,25 @@ assert.equal(cmp.bars[1].pct, 100)
 assert.ok(Math.abs(cmp.bars[0].pct - (7.73 / 45.16) * 100) < 1e-9)
 assert.match(op.cues.find((c) => c.id === 'op-eagle').labels[1].text, /750 m apart \(separation, not distance driven\)/)
 assert.match(pf.cues.find((c) => c.id === 'pf-final').cards[1].text, /2\.3 billion bits/)
+
+// Required interaction checkpoints (version 4): after the line, inside the cue, ordered.
+const expected = { pf: ['pf-pebble-look', 'pf-dust'], sp: ['sp-rock'], op: ['op-outcrop', 'op-eagle'] }
+for (const [id, ids] of Object.entries(expected)) {
+  const r = chapterRun(tour, id, { withIntro: id === 'pf' })
+  const cps = checkpoints(r)
+  assert.deepEqual(cps.map((c) => c.id), ids)
+  for (const cp of cps) {
+    const c = r.cues.find((x) => x.id === cp.id)
+    assert.ok(cp.required && cp.prompt && cp.label && cp.fallbackLabel && cp.target)
+    assert.ok(cp.t > c.start && cp.t < c.end, `${cp.id} inside its cue`)
+    if (c.text) assert.ok(cp.t >= c.speakEnd - 1e-9, `${cp.id} waits until after Neo's line`)
+  }
+}
+// The Eagle look-back waits with the rover on the rim (before the onward drive starts).
+const eagle = chapterRun(tour, 'op').cues.find((c) => c.id === 'op-eagle')
+assert.ok(eagle.checkpoint.atRel <= eagle.rover[1].start && eagle.checkpoint.atRel >= eagle.rover[0].end)
+// Labels and cards that reveal results come after the checkpoint.
+const dust = pf.cues.find((c) => c.id === 'pf-dust')
+assert.ok(dust.labels.find((l) => /Magnetic dust/.test(l.text)).at > dust.checkpoint.atRel)
+assert.ok(op.cues.find((c) => c.id === 'op-outcrop').cards[0].at > op.cues.find((c) => c.id === 'op-outcrop').checkpoint.atRel)
 console.log('tour tests passed')

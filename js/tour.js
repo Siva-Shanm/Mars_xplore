@@ -107,9 +107,15 @@ export function buildTour(json, data, { approvals: override = {}, assets = {} } 
         return r ? { ...l, text: r.text, sourceIds: r.sourceIds || [] } : null
       }).filter(Boolean)
       const cards = (c.cards || []).map((k) => { const r = resolve(k.key); return r ? { ...k, ...r } : null }).filter(Boolean)
+      // Required interaction checkpoint: the playhead stops here until the visitor acts.
+      let checkpoint = null
+      if (c.interaction?.required) {
+        const atRel = typeof c.interaction.at === 'number' ? c.interaction.at : lead + speak + 0.3
+        checkpoint = { ...c.interaction, id: c.id, atRel: Math.min(atRel, duration - 0.5) }
+      }
       const cue = {
         ...c, index: i, start: t, lead, speakStart: t + lead, speakDur: speak, speakEnd: t + lead + speak, end: t + duration, duration,
-        labels, cards, sourceIds: (c.sourceIds || []).filter((s) => sources[s]),
+        labels, cards, sourceIds: (c.sourceIds || []).filter((s) => sources[s]), checkpoint,
       }
       t += duration
       return cue
@@ -128,6 +134,7 @@ export function chapterRun(tour, id, { withIntro = false } = {}) {
   const timeline = cues.map((c, i) => {
     const shift = t - c.start
     const out = { ...c, index: i, start: c.start + shift, speakStart: c.speakStart + shift, speakEnd: c.speakEnd + shift, end: c.end + shift }
+    if (c.checkpoint) out.checkpoint = { ...c.checkpoint, t: out.start + c.checkpoint.atRel }
     t = out.end
     return out
   })
@@ -145,6 +152,11 @@ export function activeLabel(c, τ) {
   let lab = null
   for (const l of c.labels || []) if (τ >= l.at && (l.until == null || τ < l.until)) lab = l
   return lab
+}
+
+/** Checkpoints of a chapter run, in playhead order. */
+export function checkpoints(run) {
+  return run.cues.filter((c) => c.checkpoint).map((c) => c.checkpoint)
 }
 
 export function activeCards(c, τ) {
