@@ -213,13 +213,14 @@
         "pathfinder"
       ],
       "interaction": {
-        "required": true,
+        "required": false,
         "kind": "inspect",
         "target": "pebble",
         "prompt": "Tap the pebble!",
-        "label": "Tap the pebble to inspect it",
-        "fallbackLabel": "Inspect the pebble",
-        "at": "afterLine"
+        "label": "Inspect pebble",
+        "fallbackLabel": "Inspect pebble",
+        "at": "afterLine",
+        "aria": "Inspect the pebble up close"
       }
     },
     {
@@ -305,13 +306,14 @@
         "pathfinder"
       ],
       "interaction": {
-        "required": true,
+        "required": false,
         "kind": "activate",
         "target": "magnet",
         "prompt": "Tap the magnet to switch it on!",
-        "label": "Tap the magnet to switch it on",
+        "label": "Switch on the magnet",
         "fallbackLabel": "Switch on the magnet",
-        "at": "afterLine"
+        "at": "afterLine",
+        "aria": "Switch on the magnet now"
       }
     },
     {
@@ -539,13 +541,14 @@
         "spirit"
       ],
       "interaction": {
-        "required": true,
+        "required": false,
         "kind": "inspect",
         "target": "specimen",
         "prompt": "Tap the rock!",
-        "label": "Tap the rock to inspect it",
-        "fallbackLabel": "Inspect the rock",
-        "at": "afterLine"
+        "label": "Inspect rock",
+        "fallbackLabel": "Inspect rock",
+        "at": "afterLine",
+        "aria": "Inspect the rock up close"
       }
     },
     {
@@ -707,13 +710,14 @@
         "merHighlights"
       ],
       "interaction": {
-        "required": true,
+        "required": false,
         "kind": "inspect",
         "target": "outcrop",
         "prompt": "Tap the outcrop!",
-        "label": "Tap the outcrop to inspect it",
-        "fallbackLabel": "Inspect the outcrop",
-        "at": "afterLine"
+        "label": "Inspect outcrop",
+        "fallbackLabel": "Inspect outcrop",
+        "at": "afterLine",
+        "aria": "Inspect the outcrop up close"
       }
     },
     {
@@ -767,13 +771,14 @@
         "opportunity"
       ],
       "interaction": {
-        "required": true,
+        "required": false,
         "kind": "inspect",
         "target": "eagleCrater",
         "prompt": "Look back at Eagle Crater!",
-        "label": "Look back at Eagle Crater",
-        "fallbackLabel": "Look back at Eagle Crater",
-        "at": 12.0
+        "label": "Look back",
+        "fallbackLabel": "Look back",
+        "at": 12.0,
+        "aria": "Look back at Eagle Crater"
       }
     },
     {

@@ -79,6 +79,18 @@ export class NeoView {
     this.lastPose = pose
   }
 
+  /**
+   * Stage-pixel position of the top of Neo's helmet, computed with the same camera and
+   * corner viewport that render him, so the speech bubble's tail points at his head.
+   */
+  headScreen() {
+    const r = this.rect
+    if (!r.w) return null
+    this.neo.root.updateMatrixWorld(true)
+    const p = this.neo.head.localToWorld(new THREE.Vector3(0, 0.46, 0)).project(this.camera)
+    return { x: r.x + (p.x + 1) * 0.5 * r.w, y: r.y + (1 - p.y) * 0.5 * r.h }
+  }
+
   render(renderer, size) {
     const r = this.rect
     if (!r.w) return

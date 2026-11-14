@@ -14,7 +14,7 @@ On Windows use `py -m http.server 8000`. Then open <http://localhost:8000/>. Alw
 
 Runtime dependencies come from jsDelivr through the import map in `index.html` (`three@0.180.0` and `gsap@3.13.0`). Everything else is local.
 
-**Updating a running copy:** browsers cache JavaScript from simple static servers. `index.html` therefore loads every local module and the stylesheet with a version tag (`?v=4`, applied to all local modules through the import map). When you change any file in `js/` or `css/`, bump that number everywhere it appears in `index.html`, and update the "Version" line in the footer. To check which version a browser is running, read the footer line, for example "Version 4 · Neo speaks and waits for you".
+**Updating a running copy:** browsers cache JavaScript from simple static servers. `index.html` therefore loads every local module and the stylesheet with a version tag (`?v=5`, applied to all local modules through the import map). When you change any file in `js/` or `css/`, bump that number everywhere it appears in `index.html`, and update the "Version" line in the footer. To check which version a browser is running, read the footer line, for example "Version 5 · Neo’s dialogue, wider guided view".
 
 ## Structure
 
@@ -209,6 +209,32 @@ This release supersedes the earlier rule that visitors must never be required to
 - **Chapter record:** Next rover / Finish the expedition, Explore the globe, and Replay chapter, as a centred card.
 - **The strip below:** keeps the full caption, scrubber, stop list (checkpoint stops are marked "👆 your turn"), sources, Replay line and the same transport.
 
+## Version 5: Opportunity grounded, Neo's dialogue beside him, wider guided view
+
+**Opportunity sinking: cause and fix.** Version 3 added a flat "distant ground" plane at y = −0.45 under each stage, so orbital shots would not show the edge of the local terrain patch. Eagle Crater's floor is about −1.7, so that plane cut straight through the crater. Opportunity was correctly placed on the floor, but everything below −0.45 was hidden, leaving only the mast showing until the rover neared the rim. Endurance Crater and Spirit's Bonneville Crater were affected the same way.
+- **Frame, not a sheet:** the distant ground is now a frame around the patch and never under it.
+- **Wheel contact:** a secondary issue was that rover pose used only the slope at the rover's center, so wheels could dip into curved crater walls. One `_groundPose` routine now samples the terrain under the wheel footprint, orients the body to it, and lifts it so no wheel is below the surface. It is used for entry, playback, replay, seek and the late-mission scenes.
+- **Measured:** 271 samples from the first stage frame to the end of `op-eagle` put every wheel within 3.7 cm below and 6.2 cm above the analytic ground. The pose is identical on first entry, after a backward seek, and after Replay chapter.
+
+**Neo's line beside him.**
+- **The bubble:** the active line appears in a speech bubble whose tail points at Neo's head. The head position is projected through the same camera and scissored corner viewport that render him.
+- **Placement:** the bubble tries above-head and inward-side placements, with a compact size on phones. It stays inside the stage and avoids the rover, the clue and the action.
+- **One visible copy:** the copy in the lower panel is now screen-reader only. The bubble is `aria-hidden` and lets canvas input through.
+- **Always available:** the line stays when paused, muted, or in reduced motion, and updates on cue changes, seeks and chapter switches.
+- **Fallback:** without Neo or WebGL, a compact "Neo" dialogue box inside the stage shows the line.
+
+**Actions when they matter (inspections are optional again).** This prompt asks for the tour to advance by itself when an inspection is skipped, so the Version 4 required checkpoints are now optional offers (`"required": false` in `data/tour.json`).
+- **The offer:** one compact labelled action (Inspect pebble, Switch on the magnet, Inspect rock, Inspect outcrop, Look back) appears beside the highlighted feature. On phones, or when the feature is off screen, it sits just by Neo's dialogue.
+- **Inspecting:** opening an inspection holds the current moment, and closing it restores that moment, the play intent and focus.
+- **Expiry:** an expired action leaves the screen and the tab order. If it had focus, focus moves to Pause.
+- **Chapter end:** Next rover appears inside the view and receives focus.
+
+**Wider guided view and compact controls.**
+- **Layout:** while touring, the layout is one column (the mission panel steps aside), gutters are slimmer, and the stage is taller. At 1366 px the stage measures 1338 px, against 898 px in free mode with the panel open, with no horizontal scroll.
+- **In-view bar:** Pause/Resume, Back to globe, a small "Ch 1/3 · Stop 5/9" indicator, and **Tour controls**.
+- **Tour controls:** a disclosure inside the view, collapsed by default and opened in one interaction. It holds the scrubber and timestamps, Previous/Next stop, Replay chapter, Sound, Replay line, the Spirit plan toggle and the full stop list. Focus moves into the panel, and Escape or Close returns focus to the toggle.
+- **Below the stage:** the strip keeps the chapter and stop indicator and the expandable sources.
+
 ## Model registration (verified)
 
 | Field | Value | Evidence |
@@ -302,6 +328,33 @@ Exercised with Playwright in headless Chromium (SwiftShader software WebGL), ser
 **Observed timings.**
 - **Playhead (silent):** Pathfinder 2:17 (2:32 with the intro), Spirit 2:04, Opportunity 2:02, closing 0:22. With narration on, a cue can extend by up to 60% of its line plus 4 s if the voice runs long.
 - **Wall clock:** in this headless software-rendering environment the 152 s Pathfinder run took 302 s. The frame rate is low and the clock advances at most 0.1 s per frame, so this is an environment limit, not the intended pace. Timing on real hardware is still to be measured.
+
+### Version 5 QA (Opportunity pose, dialogue beside Neo, in-view actions, wider view)
+
+Run in headless Chromium (SwiftShader) over HTTP and the `/Mars_xplore/` subpath, with a fake speech engine. **22 of 22 new checks passed.** The regression groups also passed: the globe suite (29/29), and the Version 3 and Version 4 groups that still apply: baseline, Neo poses, switching, gates, endings, evidence, failures, subpath, bubble and audio, and in-view controls. Some old tests needed updating where this release changed the behaviour on purpose: removed strip buttons, "▶" labels, and inspections that are no longer required.
+
+- **Opportunity:**
+  - No wheel sinks (worst 3.7 cm) or floats (worst 6.2 cm) from the first stage frame through the climb, and motion is continuous.
+  - The distant ground never overlaps Eagle or Endurance.
+  - A ray from the camera hits the rover first at the end of the descent and at the start of the climb.
+  - First entry, a backward seek and Replay chapter give an identical pose.
+  - Spirit's Bonneville drive is also grounded.
+- **Dialogue:**
+  - The tail tip lands within 14 px of Neo's projected head. The bubble stays inside the stage and has `pointer-events: none`.
+  - Exactly one visible copy of the narration.
+  - When muted and paused, the line stays and the bar shows Resume.
+  - The bubble text updates on seek and on chapter switch.
+  - Without WebGL, a "Neo" dialogue box appears inside the stage.
+- **Actions:**
+  - Pause and Back to globe are visible during playback, and Tour controls is collapsed.
+  - "Inspect pebble" appears in the view without scrolling.
+  - An inspection holds the moment and closing it restores the moment and focus.
+  - An ignored action lets the tour continue, and expired actions are removed.
+  - Next rover is in view and focused at the chapter end.
+  - Tour controls opens in one interaction with every tool and focus on the scrubber. Escape closes it back to the toggle. The stop list seeks and pauses.
+- **Layout:** the guided stage measures 1338 px at a 1366 px viewport, against 898 px in free mode, with no overflow.
+- **Phone:** a compact bubble, the action by Neo's dialogue, and no overlaps or overflow. Touch inspect, Continue and Tour controls all work.
+- **Full chapter:** one press with no clicks played the Pathfinder chapter to its record (154 s of playhead, 248 s wall clock in software rendering). Next rover, Finish the expedition and the outro all worked.
 
 ### Version 4 QA (speech bubble, voice, checkpoints, in-view controls)
 

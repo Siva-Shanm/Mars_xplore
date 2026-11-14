@@ -215,11 +215,24 @@ export class TourStage {
     this.terrain = this._terrainMesh(this.h, w.center[0], w.center[1], w.size, this.quality.segments, w)
     scene.add(this.terrain)
     // Distant ground so wide and orbital shots never show the edge of the local patch.
-    const far = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), new THREE.MeshStandardMaterial({ color: w.base, roughness: 1 }))
-    far.rotation.x = -Math.PI / 2
-    far.position.set(w.center[0], -0.45, w.center[1])
-    far.receiveShadow = false
-    scene.add(far)
+    // It is a frame AROUND the patch (never under it): a full plane here used to cut
+    // through Eagle, Endurance and Bonneville craters and hide the rover on the floor.
+    const farMat = new THREE.MeshStandardMaterial({ color: w.base, roughness: 1 })
+    const half = w.size / 2
+    const ext = 1200
+    const inset = 1.5 // tuck slightly under the patch edge so no seam shows
+    for (const [cx, cz, sx, sz] of [
+      [w.center[0], w.center[1] - half - ext / 2 + inset, w.size + 2 * ext, ext],
+      [w.center[0], w.center[1] + half + ext / 2 - inset, w.size + 2 * ext, ext],
+      [w.center[0] - half - ext / 2 + inset, w.center[1], ext, w.size],
+      [w.center[0] + half + ext / 2 - inset, w.center[1], ext, w.size],
+    ]) {
+      const far = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), farMat)
+      far.rotation.x = -Math.PI / 2
+      far.position.set(cx, -0.45, cz)
+      far.name = 'farGround'
+      scene.add(far)
+    }
     if (w.rim) scene.add(this._rimMesh(w))
 
     if (this.id === 'pf') this._buildPF()
@@ -246,7 +259,7 @@ export class TourStage {
       pos.setY(i, y)
       const k = 0.5 + 0.5 * Math.sin(x * 0.9 + z * 0.4) * Math.cos(z * 0.7 - x * 0.2)
       tmp.copy(base).lerp(k > 0.5 ? light : dark, Math.abs(k - 0.5) * 0.9)
-      if (y < -0.3) tmp.lerp(dark, Math.min(0.6, -y * 0.3))
+      if (y < -0.3) tmp.lerp(dark, Math.min(0.28, -y * 0.14))
       col.set([tmp.r, tmp.g, tmp.b], i * 3)
     }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3))
@@ -332,6 +345,8 @@ export class TourStage {
   _placeRover(inst) {
     if (this.rover) this.roverHolder.remove(this.rover.root)
     this.rover = inst
+    // Wheel footprint (half track, half wheelbase) for terrain contact.
+    inst.footprint = inst.kind === 'sojourner' ? { W: 0.235, L: 0.22 } : { W: 0.53, L: 0.606 }
     inst.root.traverse((o) => { if (o.isMesh) o.castShadow = this.quality.shadows })
     this.roverHolder.add(inst.root)
   }
@@ -779,19 +794,48 @@ export class TourStage {
     if (route.isExplicit(s)) {
       _x.set(0, 1, 0).cross(_f).normalize()
       _u.crossVectors(_f, _x).normalize()
-    } else this._groundBasis(outPos, this.h)
-    _x.crossVectors(_u, _f).normalize()
-    _m.makeBasis(_x, _u, _f)
-    outQuat.setFromRotationMatrix(_m)
+      _x.crossVectors(_u, _f).normalize()
+      _m.makeBasis(_x, _u, _f)
+      outQuat.setFromRotationMatrix(_m)
+      return
+    }
+    this._groundPose(outPos, _f, this.h, outQuat)
   }
 
-  /** Up = averaged surface normal; forward = tangent projected onto the ground plane. */
-  _groundBasis(p, h) {
-    const e = 0.5
-    const hx = (h(p.x + e, p.z) - h(p.x - e, p.z)) / (2 * e)
-    const hz = (h(p.x, p.z + e) - h(p.x, p.z - e)) / (2 * e)
-    _u.set(-hx, 1, -hz).normalize()
-    _f.addScaledVector(_u, -_f.dot(_u)).normalize()
+  /**
+   * The single terrain-contact rule for every rover pose (entry, playback, replay, seek,
+   * late scenes). Samples the ground under the wheel footprint, orients the body to that
+   * plane, then lifts it so no wheel is below the surface on curved crater walls or rims.
+   * p: centre (x, z used; y written); dir: travel direction; h: height function.
+   */
+  _groundPose(p, dir, h, outQuat) {
+    const { W, L } = this.rover.footprint || { W: 0.5, L: 0.6 }
+    const f = _v.set(dir.x, 0, dir.z)
+    if (f.lengthSq() < 1e-10) f.set(0, 0, 1)
+    f.normalize()
+    const r = new THREE.Vector3(f.z, 0, -f.x) // right = up × forward
+    const hF = h(p.x + f.x * L, p.z + f.z * L)
+    const hB = h(p.x - f.x * L, p.z - f.z * L)
+    const hR = h(p.x + r.x * W, p.z + r.z * W)
+    const hLt = h(p.x - r.x * W, p.z - r.z * W)
+    const slopeF = (hF - hB) / (2 * L)
+    const slopeR = (hR - hLt) / (2 * W)
+    const fwd = new THREE.Vector3(f.x, slopeF, f.z).normalize()
+    const right = new THREE.Vector3(r.x, slopeR, r.z).normalize()
+    _u.crossVectors(fwd, right).normalize()
+    if (_u.y < 0) _u.negate()
+    _x.crossVectors(_u, fwd).normalize()
+    _f.crossVectors(_x, _u).normalize()
+    const planeY = (hF + hB + hR + hLt) / 4
+    let lift = 0
+    for (const cx of [-W, W]) for (const cz of [-L, 0, L]) {
+      const wx = p.x + r.x * cx + f.x * cz
+      const wz = p.z + r.z * cx + f.z * cz
+      lift = Math.max(lift, h(wx, wz) - (planeY + slopeR * cx + slopeF * cz))
+    }
+    p.y = planeY + lift
+    _m.makeBasis(_x, _u, _f)
+    outQuat.setFromRotationMatrix(_m)
   }
 
   requestModelSwap() { this.pendingSwap = this.id !== 'pf' }
@@ -931,11 +975,8 @@ export class TourStage {
     const rp = this.rover.root.position
     if (late) {
       const lh = this.lateHeight
-      rp.set(LATE.x, lh(LATE.x, LATE.z), LATE.z)
-      _f.set(this.id === 'sp' ? 0.6 : 0, 0, this.id === 'sp' ? 0.8 : 1).normalize()
-      this._groundBasis(rp, lh)
-      _x.crossVectors(_u, _f).normalize()
-      this.rover.root.quaternion.setFromRotationMatrix(_m.makeBasis(_x, _u, _f))
+      rp.set(LATE.x, 0, LATE.z)
+      this._groundPose(rp, new THREE.Vector3(this.id === 'sp' ? 0.6 : 0, 0, this.id === 'sp' ? 0.8 : 1), lh, this.rover.root.quaternion)
       if (this.id === 'sp') {
         // Wheels settle into soft soil, then everything is still.
         const sink = span(τ, 0.8, 4.2)

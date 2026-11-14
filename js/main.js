@@ -293,7 +293,7 @@ function startGlobe() {
         onCalloutMode: (mode) => els.tour.classList.toggle('label-floating', mode === 'float'),
         onInspectDrag: (dx, dy) => state.guide?.inspectDrag(dx, dy),
         onTourLayout: (l) => state.guide?.layout(l),
-        onStageTap: () => state.guide?.satisfyCheckpoint('canvas'),
+        onStageTap: () => state.guide?.actOnOffer('canvas'),
         onNeoStatus: (s) => { if (s !== 'full') console.warn('[neo] rendering:', s) },
         onSelect: (id, trigger, el) => selectMission(id, trigger, el),
         onStatus: (key, text, level, action) => setStatus(key, text, level, action),
@@ -383,6 +383,7 @@ $('#btn-data-retry').addEventListener('click', async () => {
 })
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return
+  if (state.guide?.panelOpen) { e.preventDefault(); state.guide.togglePanel(false); return }
   if (state.guide?.inspect) { e.preventDefault(); state.guide.closeInspect(); return }
   if (state.guide?.active) { e.preventDefault(); state.guide.exit(); return }
   if (state.panel?.isOpen) { e.preventDefault(); closePanel() }

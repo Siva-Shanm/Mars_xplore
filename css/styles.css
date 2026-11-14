@@ -669,3 +669,78 @@ h1 { margin: 0; font-size: clamp(1.25rem, 2.4vw, 1.7rem); letter-spacing: 0.01em
 @media (max-width: 600px) {
   .neo-audio-note { top: 8px; left: 8px; right: 8px; transform: none; max-width: none; padding: 4px 8px; font-size: 0.72rem; line-height: 1.3; }
 }
+
+/* ======================================================================
+   Version 5: Neo's dialogue beside him, compact in-view actions,
+   Tour controls disclosure, wider guided view
+   ====================================================================== */
+
+/* Wider guided view: one column, slimmer gutters, taller stage; the entry block steps aside. */
+.layout.is-touring { grid-template-columns: minmax(0, 1fr) !important; }
+.layout.is-touring .panel { display: none; }
+.layout.is-touring .globe-region { padding: 8px clamp(6px, 1.2vw, 14px); gap: 8px; }
+.layout.is-touring .entry { display: none; }
+.layout.is-touring .globe-stage { height: min(76vh, calc(100vh - 170px)); min-height: 340px; }
+.layout.is-touring + .evidence, .layout.is-touring ~ .evidence { margin-inline: clamp(6px, 1.2vw, 14px); }
+
+/* Speech bubble: tail anchored to Neo's head (position set from the renderer). */
+.neo-bubble { max-width: 340px; }
+.neo-bubble::after { right: auto; left: var(--tail-x, 26px); }
+.neo-bubble[data-tail="side"]::after { bottom: auto; top: var(--tail-y, 18px); left: auto; right: -11px; transform: rotate(-45deg); }
+.neo-bubble[data-tail="side"][data-side="left"]::after { right: auto; left: -11px; transform: rotate(135deg); }
+.neo-bubble.is-compact { padding: 7px 10px 8px; font-size: 0.86rem; line-height: 1.35; border-radius: 13px; }
+.neo-bubble.is-compact .neo-bubble-name { font-size: 0.62rem; }
+
+/* Fallback dialogue box (no Neo / no WebGL): compact, inside the stage, labelled Neo. */
+.neo-dock {
+  position: absolute; left: 10px; bottom: 66px; z-index: 6; margin: 0; max-width: min(460px, calc(100% - 20px));
+  border-radius: 12px; border-top: 2px solid #12284a; pointer-events: none; min-height: 0;
+}
+.neo-dock.is-prompt { border-top-color: #8a5a00; }
+
+/* Compact contextual action: a small pulsing ring on the feature with a labelled pill. */
+.tour-hotspot { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+.tour-hotspot .hotspot-ring { border-width: 3px; }
+.tour-hotspot .hotspot-hand { width: 26px; height: 26px; right: -12px; bottom: -14px; }
+.tour-hotspot .hotspot-label { left: calc(100% + 12px); top: 50%; transform: translateY(-50%); font-size: 0.9rem; padding: 6px 12px; min-height: 32px; display: inline-flex; align-items: center; }
+/* Beside Neo's dialogue (phones, or feature off screen): a labelled pill button. */
+.tour-hotspot.is-by-neo {
+  width: auto; height: auto; margin: 0; display: inline-flex; align-items: center; gap: 8px;
+  min-height: 46px; padding: 8px 16px 8px 12px; border-radius: 999px;
+  background: #ffc35c; color: #2a1a00; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+.tour-hotspot.is-by-neo .hotspot-ring { display: none; }
+.tour-hotspot.is-by-neo .hotspot-hand { position: static; width: 22px; height: 22px; fill: #2a1a00; stroke: none; filter: none; animation: none; }
+.tour-hotspot.is-by-neo .hotspot-label { position: static; transform: none; padding: 0; background: none; box-shadow: none; min-height: 0; }
+.tour-hotspot:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* In-view bar: Pause/Resume, Back to globe, Tour controls, and a small stop indicator. */
+.hud-stop { align-self: center; padding: 0 6px; font-size: 0.78rem; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+#hud-tools[aria-expanded="true"] { border-color: var(--accent); background: #10303d; }
+
+/* Tour controls disclosure inside the view (collapsed by default). */
+.tour-panel {
+  position: absolute; bottom: 68px; z-index: 8; width: min(560px, calc(100% - 20px)); max-height: calc(100% - 130px); overflow: auto;
+  display: grid; gap: 10px; padding: 12px; border-radius: 14px;
+  background: rgba(8, 12, 18, 0.95); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+.tour-panel[data-side="right"], .tour-panel:not([data-side]) { left: 10px; }
+.tour-panel[data-side="left"] { right: 10px; }
+.tour-panel-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tour-panel .btn { min-height: 44px; }
+.tour-panel-close { justify-self: end; }
+.tour-panel .replay-stops { max-height: none; }
+
+@media (max-width: 600px) {
+  .layout.is-touring .globe-stage { height: 64vh; min-height: 320px; }
+  .tour-panel { left: 8px !important; right: 8px !important; width: auto; bottom: 62px; }
+  .tour-hotspot .hotspot-label { font-size: 0.82rem; }
+  .neo-dock { bottom: 62px; font-size: 0.86rem; padding: 7px 10px; }
+  .hud-stop { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-hotspot .hotspot-ring, .tour-hotspot .hotspot-hand { animation: none; }
+}
+.neo-bubble[data-side]:not([data-tail="side"])::after { left: var(--tail-x, 26px); right: auto; }
+.tour.label-floating .tour-label-text { display: none; }
+.tour-label:empty { display: none; }

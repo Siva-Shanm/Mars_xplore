@@ -652,7 +652,8 @@ export class GlobeRenderer {
         hotspot = { x: sp?.x ?? 0, y: sp?.y ?? 0, visible: !!(sp && sp.on && !stage.occluded(a)) }
       }
     }
-    this.cb.onTourLayout?.({ neoRect: nv && fs.neo ? nv.rect : null, subjects, hotspot, size: this.size })
+    const neoRect = nv && fs.neo ? { ...nv.rect, head: nv.headScreen() } : null
+    this.cb.onTourLayout?.({ neoRect, subjects, hotspot, size: this.size })
   }
 
   /** Did a canvas tap hit the target the tour is waiting for? */

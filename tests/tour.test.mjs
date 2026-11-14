@@ -59,7 +59,7 @@ assert.ok(Math.abs(cmp.bars[0].pct - (7.73 / 45.16) * 100) < 1e-9)
 assert.match(op.cues.find((c) => c.id === 'op-eagle').labels[1].text, /750 m apart \(separation, not distance driven\)/)
 assert.match(pf.cues.find((c) => c.id === 'pf-final').cards[1].text, /2\.3 billion bits/)
 
-// Required interaction checkpoints (version 4): after the line, inside the cue, ordered.
+// Interaction points: after the line, inside the cue, ordered.
 const expected = { pf: ['pf-pebble-look', 'pf-dust'], sp: ['sp-rock'], op: ['op-outcrop', 'op-eagle'] }
 for (const [id, ids] of Object.entries(expected)) {
   const r = chapterRun(tour, id, { withIntro: id === 'pf' })
@@ -67,7 +67,8 @@ for (const [id, ids] of Object.entries(expected)) {
   assert.deepEqual(cps.map((c) => c.id), ids)
   for (const cp of cps) {
     const c = r.cues.find((x) => x.id === cp.id)
-    assert.ok(cp.required && cp.prompt && cp.label && cp.fallbackLabel && cp.target)
+    // Version 5: interactions are optional offers (the tour continues if ignored).
+    assert.ok(cp.required === false && cp.label && cp.aria && cp.target)
     assert.ok(cp.t > c.start && cp.t < c.end, `${cp.id} inside its cue`)
     if (c.text) assert.ok(cp.t >= c.speakEnd - 1e-9, `${cp.id} waits until after Neo's line`)
   }

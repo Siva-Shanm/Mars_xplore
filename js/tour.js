@@ -107,11 +107,12 @@ export function buildTour(json, data, { approvals: override = {}, assets = {} } 
         return r ? { ...l, text: r.text, sourceIds: r.sourceIds || [] } : null
       }).filter(Boolean)
       const cards = (c.cards || []).map((k) => { const r = resolve(k.key); return r ? { ...k, ...r } : null }).filter(Boolean)
-      // Required interaction checkpoint: the playhead stops here until the visitor acts.
+      // Interaction point. Optional ("required": false) offers an action without stopping
+      // the tour; required ones stop the playhead until the visitor acts.
       let checkpoint = null
-      if (c.interaction?.required) {
+      if (c.interaction) {
         const atRel = typeof c.interaction.at === 'number' ? c.interaction.at : lead + speak + 0.3
-        checkpoint = { ...c.interaction, id: c.id, atRel: Math.min(atRel, duration - 0.5) }
+        checkpoint = { ...c.interaction, required: !!c.interaction.required, id: c.id, atRel: Math.min(atRel, duration - 0.5) }
       }
       const cue = {
         ...c, index: i, start: t, lead, speakStart: t + lead, speakDur: speak, speakEnd: t + lead + speak, end: t + duration, duration,

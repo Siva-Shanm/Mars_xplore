@@ -89,21 +89,18 @@ export class TourController {
   _wire() {
     const q = this.q
     const on = (sel, fn) => q(sel)?.addEventListener('click', fn)
-    on('#tour-back', () => this.exit())
     on('#hud-back', () => this.exit())
-    on('#tour-play', () => this.togglePlay())
     on('#hud-play', () => this.togglePlay())
+    on('#hud-tools', () => this.togglePanel())
+    on('#tour-panel-close', () => this.togglePanel(false))
     on('#tour-prev', () => this.step(-1))
-    on('#hud-prev', () => this.step(-1))
     on('#tour-next', () => this.step(1))
-    on('#hud-next', () => this.step(1))
     on('#tour-replay', () => { this.seek(0, false); this.play() })
     on('#tour-listen', () => this.setSound(!this.soundOn))
     on('#neo-sound', () => this.setSound(!this.soundOn))
     on('#tour-replay-line', () => this.replayLine())
-    on('#tour-inspect', () => this.openInspect())
     on('#tour-inspect-close', () => this.closeInspect())
-    on('#tour-hotspot', () => this.satisfyCheckpoint('hotspot'))
+    on('#tour-hotspot', () => this.actOnOffer('hotspot'))
     on('#tour-plan', () => {
       this.planVisible = !this.planVisible
       this.getGlobe()?.setPlanVisible(this.planVisible)
@@ -148,6 +145,8 @@ export class TourController {
     this.root.hidden = false
     this.root.classList.add('is-active')
     this.q('#stage-hud').hidden = false
+    this.q('#layout')?.classList.add('is-touring')
+    this.togglePanel(false, { focus: false })
     const globe = this.getGlobe()
     if (globe) {
       globe.beginTour()
@@ -188,7 +187,10 @@ export class TourController {
     this.ov.cards.replaceChildren()
     this.ov.banner.hidden = true
     this.ov.neoTag.hidden = true
-    for (const s of ['#stage-hud', '#neo-bubble', '#neo-dock', '#neo-sound', '#tour-hotspot', '#stage-action', '#tour-end', '#neo-audio-note']) this.q(s).hidden = true
+    for (const s of ['#stage-hud', '#neo-bubble', '#neo-dock', '#neo-sound', '#tour-hotspot', '#stage-action', '#tour-end', '#neo-audio-note', '#tour-panel']) this.q(s).hidden = true
+    this.q('#hud-tools').setAttribute('aria-expanded', 'false')
+    this.panelOpen = false
+    this.q('#layout')?.classList.remove('is-touring')
     this.getGlobe()?.endTour()
     if (!silent) this.announce('Tour closed. Back to the globe.')
     this.onExit?.(id, { silent })
@@ -320,16 +322,15 @@ export class TourController {
     this.announce(`${cp.label.replace(/^Tap /, '')}. Drag to look around, then choose Continue the tour.`)
   }
 
-  openInspect() {
-    if (!this.run) return
-    const c = cueAt(this.run, this.clock.time)
-    if (!c.inspect) return
-    this.inspect = { target: c.inspect.target, label: c.inspect.label, yaw: 0, pitch: 0, wasPlaying: this.clock.playing }
+  /** Inspection: hold the current moment; Close restores it and the prior play intent. */
+  openInspect(o) {
+    if (!this.run || !o) return
+    this.inspect = { target: o.target, label: o.label, yaw: 0, pitch: 0, wasPlaying: this.clock.playing, cueId: o.id }
     this.clock.pause()
     this.narrator.cancel()
     this._sync(true)
     this.q('#tour-inspect-close').focus({ preventScroll: true })
-    this.announce(`${c.inspect.label}. Drag to look around, then continue.`)
+    this.announce(`${o.aria || o.label}. Drag to look around, then continue.`)
   }
 
   closeInspect() {
@@ -340,13 +341,22 @@ export class TourController {
       this.done.add(ins.checkpoint.id)
       this.waiting = null
       this.clock.play()
-      this._sync(true)
-      this.q('#hud-play').focus({ preventScroll: true })
-      return
-    }
+    } else if (ins.wasPlaying) this.clock.play()
     this._sync(true)
-    if (ins.wasPlaying) this.play()
-    this.q('#hud-play').focus({ preventScroll: true })
+    const hs = this.q('#tour-hotspot')
+    ;(hs.hidden ? this.q('#hud-play') : hs).focus({ preventScroll: true })
+  }
+
+  /** "Tour controls" disclosure inside the view. */
+  togglePanel(open = !this.panelOpen, { focus = true } = {}) {
+    this.panelOpen = !!open
+    const panel = this.q('#tour-panel')
+    const btn = this.q('#hud-tools')
+    panel.hidden = !this.panelOpen
+    btn.setAttribute('aria-expanded', String(this.panelOpen))
+    if (!focus) return
+    if (this.panelOpen) this.q('#tour-scrub').focus({ preventScroll: true })
+    else btn.focus({ preventScroll: true })
   }
 
   inspectDrag(dx, dy) {
@@ -391,7 +401,7 @@ export class TourController {
     let t = clock.time
     // Required checkpoint: stop exactly there and wait for the visitor (not a Pause).
     if (clock.playing && !this.waiting) {
-      const cp = this.cps.find((c) => !this.done.has(c.id) && before <= c.t + 1e-6 && t >= c.t - 1e-6)
+      const cp = this.cps.find((c) => c.required && !this.done.has(c.id) && before <= c.t + 1e-6 && t >= c.t - 1e-6)
       if (cp) {
         clock.time = cp.t
         t = cp.t
@@ -447,9 +457,12 @@ export class TourController {
     const speaking = playing && (audio || revealing)
     const held = speaking && t >= c.speakEnd - 1e-3
     const label = activeLabel(c, τ)
+    const offer = this._offer(c, τ, view)
     return {
       t, cue: c, τ, view, globe, playing, reduced: this.reduced, inspect: this.inspect, mission: run.mission,
-      waiting: this.waiting, highlightSites: !!c.highlightSites,
+      // 'waiting' drives the highlight, hotspot projection and canvas tap for both a
+      // required checkpoint and an optional offer.
+      waiting: this.waiting || offer, offer, highlightSites: !!c.highlightSites,
       label: label && !(view === 'globe' && !['sojourner', 'spirit', 'opportunity'].includes(label.anchor)) ? label : null,
       neo: {
         action, target, expr: this.stageError ? 'error' : (this.waiting ? 'smile' : (n.expr || 'smile')), τ: nτ, side: n.side || 'right',
@@ -461,10 +474,46 @@ export class TourController {
     }
   }
 
+  /** The one contextual action offered right now (optional inspection/activation), or null. */
+  _offer(c, τ, view) {
+    if (this.waiting || this.inspect || this.stageError) return null
+    const cp = c.checkpoint
+    if (cp && !cp.required && τ >= cp.atRel - 1e-6 && τ < c.duration - 0.05) {
+      if (cp.kind === 'activate' && τ > cp.atRel + 0.25) return null // the magnet is already on
+      return { ...cp, source: 'interaction' }
+    }
+    if (c.inspect && τ >= (c.inspect.at ?? 0) && view === 'surface') {
+      return { id: c.id, kind: 'inspect', target: c.inspect.target, label: c.inspect.label, aria: c.inspect.label, source: 'inspect' }
+    }
+    return null
+  }
+
+  /** Visitor used the offered action (hotspot, canvas tap on the feature, or keyboard). */
+  actOnOffer(source = 'hotspot') {
+    if (!this.run) return
+    if (this.waiting) { this.satisfyCheckpoint(source); return }
+    const fs = this._frameState()
+    const o = fs.offer
+    if (!o) return
+    if (o.kind === 'activate') {
+      // Switch on now: jump to the activation moment and keep playing.
+      this.clock.time = Math.max(this.clock.time, o.t + 0.3)
+      if (!this.clock.playing) this.clock.play()
+      this.announce('Magnet on. Watch the dust.')
+      this._sync(true)
+      return
+    }
+    this.openInspect(o)
+  }
+
   /** Bubble content for the current frame: {text, chars, kind} or null. */
   _bubbleContent(fs) {
     const c = fs.cue
-    if (this.inspect) return { text: this.inspect.checkpoint ? 'Take a close look. Continue when you’re ready.' : 'Have a look around!', chars: Infinity, kind: 'prompt' }
+    if (this.inspect) {
+      // On phones the in-view Continue + note already say this; keep the view clear.
+      if ((this._lastLayout?.size?.w ?? 1000) < 600) return null
+      return { text: 'Take a close look. Continue when you’re ready.', chars: Infinity, kind: 'prompt' }
+    }
     if (this.waiting) return { text: this.waiting.prompt, chars: Infinity, kind: 'prompt' }
     if (!c.text || fs.t < c.speakStart - 1e-6 || fs.t >= c.end - 1e-6) return null
     if (this.reduced) return { text: c.text, chars: Infinity, kind: 'line' }
@@ -474,10 +523,15 @@ export class TourController {
     return { text: c.text, chars: Math.max(est, spoken), kind: 'line' }
   }
 
-  /** Called by the renderer each frame with Neo's rect, the subject and the hotspot position. */
+  /** Called by the renderer each frame with Neo's rect (+ head), the subject and the action anchor. */
   layout({ neoRect, subjects = [], hotspot, size }) {
     if (!this.run) return
     this._lastLayout = { neoRect, subjects, hotspot, size }
+    const narrow = (size?.w ?? 0) < 600
+    // Where the action would float (beside the feature), so the bubble can avoid it.
+    const hs = this.q('#tour-hotspot')
+    const actionAtFeature = !hs.hidden && hotspot?.visible && !narrow
+    this._actionRect = actionAtFeature ? { x: hotspot.x - 30, y: hotspot.y - 30, w: 220, h: 60 } : null
     this._placeBubble()
     // Neo tag and sound toggle sit by Neo's corner.
     const tag = this.ov.neoTag
@@ -486,66 +540,108 @@ export class TourController {
       tag.style.transform = `translate(${neoRect.x}px, ${Math.max(0, neoRect.y - 20)}px)`
       tag.style.width = `${neoRect.w}px`
       snd.hidden = false
-      const narrow = (size?.w ?? 0) < 600
       tag.classList.toggle('is-narrow', narrow)
-      if (narrow) {
-        // Above Neo's head on phones, clear of the transport bar.
-        const sx = neoRect.side === 'left' ? neoRect.x : neoRect.x + neoRect.w - (snd.offsetWidth || 96)
-        snd.style.transform = `translate(${Math.max(6, sx)}px, ${Math.max(6, neoRect.y - 40)}px)`
-      } else {
-        const sx = neoRect.side === 'left' ? neoRect.x + neoRect.w + 6 : neoRect.x - 6 - (snd.offsetWidth || 110)
-        snd.style.transform = `translate(${Math.max(6, sx)}px, ${neoRect.y + neoRect.h - 46}px)`
-      }
+      // Bottom edge of Neo's corner, on the inward side, clear of the bubble and the bar.
+      const sw = snd.offsetWidth || 104
+      const sx = neoRect.side === 'left' ? neoRect.x + neoRect.w - sw * (narrow ? 0.9 : 0.4) : neoRect.x - sw * (narrow ? 0.1 : 0.6)
+      snd.style.transform = `translate(${Math.max(6, Math.min((size?.w ?? 0) - sw - 6, sx)).toFixed(0)}px, ${(neoRect.y + neoRect.h - 44).toFixed(0)}px)`
     } else snd.hidden = true
-    // Hotspot follows the target, or docks in the view when the target is not visible.
-    const hs = this.q('#tour-hotspot')
-    if (!hs.hidden) {
-      const docked = !hotspot || !hotspot.visible
-      hs.classList.toggle('is-docked', docked)
-      if (!docked) hs.style.transform = `translate(${hotspot.x}px, ${hotspot.y}px)`
-      else hs.style.transform = ''
+    // Action: beside the highlighted feature, or by Neo's dialogue on phones / when off screen.
+    if (!hs.hidden && !hs.classList.contains('is-docked')) {
+      if (actionAtFeature) {
+        hs.classList.remove('is-by-neo')
+        hs.style.transform = `translate(${hotspot.x.toFixed(0)}px, ${hotspot.y.toFixed(0)}px)`
+      } else {
+        hs.classList.add('is-by-neo')
+        const br = this._bubbleRect
+        const r = neoRect
+        const hw = hs.offsetWidth || 160
+        let x
+        let y
+        const hh = hs.offsetHeight || 46
+        if (br) {
+          x = r?.side === 'left' ? br.x + br.w - hw : br.x
+          // Immediately below the dialogue, unless that is Neo's head: then just above it.
+          y = br.y + br.h + 10
+          const headY = r?.head?.y ?? r?.y ?? Infinity
+          if (br.kind === 'above' || y + hh > headY - 4) y = br.y - hh - 8
+          if (y < 8) y = br.y + br.h + 10
+        }
+        else if (r?.w) { x = r.side === 'left' ? r.x + r.w + 8 : r.x - hw - 8; y = r.y + r.h * 0.3 }
+        else { x = 12; y = (size?.h ?? 300) - 130 }
+        x = Math.max(8, Math.min((size?.w ?? 0) - hw - 8, x))
+        y = Math.max(8, Math.min(y, (size?.h ?? 0) - 120))
+        hs.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)`
+      }
     }
-    // Cards and the transport bar take the side away from Neo.
+    // Cards, the bar and the tools panel take the side away from Neo.
     const side = neoRect?.side || 'right'
     this.ov.cards.dataset.side = side
     this.q('#stage-hud').dataset.side = side
+    this.q('#tour-panel').dataset.side = side
   }
 
+  /**
+   * Speech bubble beside Neo, tail anchored to his head (projected through his own
+   * camera and corner viewport). Tries above-head and inward-side placements in normal
+   * and compact widths, keeps inside the stage, and avoids covering the rover, the clue
+   * and the action. Without Neo or WebGL, a compact "Neo" dialogue box is used instead.
+   */
   _placeBubble() {
     const b = this.bubble
     const bubble = this.q('#neo-bubble')
     const dock = this.q('#neo-dock')
     const L = this._lastLayout
-    if (!b.text) { bubble.hidden = true; dock.hidden = true; return }
-    // No 3D view (no layout from the renderer): the bubble docks under the stage.
+    if (!b.text) { bubble.hidden = true; dock.hidden = true; this._bubbleRect = null; return }
     const r = L?.neoRect
     const W = L?.size?.w ?? 0
-    let mode = !this.getGlobe() || !r?.w || W < 600 ? 'dock' : 'float'
+    const H = L?.size?.h ?? 0
+    let mode = !this.getGlobe() || !r?.w ? 'dock' : 'float'
+    this._bubbleRect = null
     if (mode === 'float') {
-      bubble.dataset.side = r.side
-      // Try a few widths; dock only if every placement would cover the subject.
-      let placed = false
-      for (const maxW of [Math.min(340, W * 0.42), 260, 210]) {
+      const narrow = W < 600
+      bubble.classList.toggle('is-compact', narrow)
+      const head = r.head || { x: r.x + r.w / 2, y: r.y + r.h * 0.12 }
+      const avoid = [...L.subjects.map((s) => ({ x: s.x - Math.max(20, s.r), y: s.y - Math.max(20, s.r), w: 2 * Math.max(20, s.r), h: 2 * Math.max(20, s.r) }))]
+      if (this._actionRect) avoid.push(this._actionRect)
+      const overlap = (x, y, w, h) => avoid.reduce((a, o) => a + Math.max(0, Math.min(x + w, o.x + o.w) - Math.max(x, o.x)) * Math.max(0, Math.min(y + h, o.y + o.h) - Math.max(y, o.y)), 0)
+      const widths = narrow ? [Math.min(250, W * 0.68), Math.min(200, W * 0.56)] : [Math.min(340, W * 0.4), 260]
+      let best = null
+      for (const maxW of widths) {
         bubble.style.maxWidth = `${maxW}px`
         const bw = Math.min(maxW, bubble.offsetWidth || maxW)
         const bh = bubble.offsetHeight || 90
-        const x = r.side === 'left' ? Math.min(W - bw - 8, r.x + r.w * 0.35) : Math.max(8, r.x + r.w * 0.65 - bw)
-        const y = Math.max(8, r.y + r.h * 0.12 - bh)
-        const hit = L.subjects.some((s) => {
-          const nx = Math.max(x, Math.min(s.x, x + bw))
-          const ny = Math.max(y, Math.min(s.y, y + bh))
-          return (nx - s.x) ** 2 + (ny - s.y) ** 2 < Math.max(20, s.r) ** 2
-        })
-        if (!hit) { bubble.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)`; placed = true; break }
+        const inward = r.side === 'left' ? 1 : -1
+        const cands = [
+          // Above the head, extending toward the centre of the stage.
+          { kind: 'above', x: inward > 0 ? head.x - 34 : head.x - bw + 34, y: head.y - 14 - bh },
+          // Beside Neo, toward the centre, vertically around the head.
+          { kind: 'side', x: inward > 0 ? r.x + r.w + 4 : r.x - bw - 4, y: head.y - bh * 0.35 },
+        ]
+        for (const c of cands) {
+          c.x = Math.max(8, Math.min(W - bw - 8, c.x))
+          c.y = Math.max(8, Math.min(H - bh - 66, c.y))
+          c.w = bw; c.h = bh
+          c.cost = overlap(c.x, c.y, bw, bh) + (c.kind === 'side' ? 1 : 0)
+          if (!best || c.cost < best.cost) best = { ...c, maxW }
+        }
+        if (best.cost <= 1) break
       }
-      if (!placed) mode = 'dock'
+      bubble.style.maxWidth = `${best.maxW}px`
+      bubble.dataset.tail = best.kind
+      bubble.dataset.side = r.side
+      // Tail: x offset (above) or y offset (side) toward Neo's head, clamped inside the bubble.
+      bubble.style.setProperty('--tail-x', `${Math.max(16, Math.min(best.w - 30, head.x - best.x - 9)).toFixed(0)}px`)
+      bubble.style.setProperty('--tail-y', `${Math.max(14, Math.min(best.h - 30, head.y - best.y - 9)).toFixed(0)}px`)
+      bubble.style.transform = `translate(${best.x.toFixed(0)}px, ${best.y.toFixed(0)}px)`
+      this._bubbleRect = best
     }
     if (mode !== b.mode) {
       b.mode = mode
       bubble.hidden = mode !== 'float'
       dock.hidden = mode !== 'dock'
-      this.ov.neoTag.classList.toggle('is-covered', mode === 'float')
     }
+    this.ov.neoTag.classList.toggle('is-covered', mode === 'float')
   }
 
   _syncBubble(fs) {
@@ -593,9 +689,6 @@ export class TourController {
     const timeText = `${formatClock(t)} / ${formatClock(run.duration)}`
     if (q('#tour-time').textContent !== timeText) q('#tour-time').textContent = timeText
     const label = clock.playing ? 'Pause' : clock.ended ? 'Play again' : 'Resume'
-    const sp = q('#tour-play')
-    if (sp.textContent !== label) sp.textContent = label
-    sp.setAttribute('aria-pressed', String(clock.playing))
     const hp = q('#hud-play')
     if (hp.getAttribute('aria-label') !== label) {
       hp.setAttribute('aria-label', label)
@@ -609,6 +702,8 @@ export class TourController {
       const changed = c.id !== this.lastCueId
       this.lastCueId = c.id
       q('#tour-stop').textContent = `Stop ${c.index + 1} of ${run.cues.length}: ${c.title}`
+      const ci = ['pf', 'sp', 'op'].indexOf(run.id)
+      q('#hud-stop').textContent = `${ci >= 0 ? `Ch ${ci + 1}/3 · ` : ''}Stop ${c.index + 1}/${run.cues.length}`
       q('#tour-line').textContent = c.text ?? (c.fallbackActive ? '(No narration for this beat: the approved fallback is shown.)' : '')
       q('#tour-sources-list').replaceChildren(...this._sourceItems(c.sourceIds))
       for (const [i, li] of [...q('#tour-stops').children].entries()) {
@@ -645,29 +740,30 @@ export class TourController {
     // Speech bubble (Neo's words) and mouth come from the same playhead.
     this._syncBubble(fs)
 
-    // In-view actions: the required hotspot, the optional inspect, Continue.
+    // One contextual action at a time: beside the highlighted feature, or by Neo's dialogue.
+    // Expired actions leave the screen and the tab order.
     const hs = q('#tour-hotspot')
-    const showHot = !!this.waiting && !this.inspect
-    if (hs.hidden === showHot) hs.hidden = !showHot
+    const act = this.waiting || fs.offer
+    const noGL = !globe || this.stageError
+    const showHot = !!act && !this.inspect && !(noGL && !this.waiting && act.kind === 'inspect')
+    if (hs.hidden === showHot) {
+      if (!showHot && document.activeElement === hs) q('#hud-play').focus({ preventScroll: true })
+      hs.hidden = !showHot
+      if (showHot) this.announce(`${act.aria || act.label} available.`)
+    }
     if (showHot) {
-      const w = this.waiting
-      const noGL = !globe || this.stageError
-      const lbl = noGL ? w.fallbackLabel : w.label
+      const lbl = act.label
       if (hs.dataset.label !== lbl) {
         hs.dataset.label = lbl
-        hs.querySelector('.hotspot-label').textContent = noGL ? lbl : w.prompt.replace(/!$/, '')
-        hs.setAttribute('aria-label', lbl)
+        hs.querySelector('.hotspot-label').textContent = lbl
+        hs.setAttribute('aria-label', act.aria || lbl)
       }
       if (noGL) hs.classList.add('is-docked')
     }
-    const canInspect = !!(c.inspect && fs.τ >= (c.inspect.at ?? 0) && globe && fs.view === 'surface' && !this.stageError && !this.waiting)
-    const ib = q('#tour-inspect')
-    ib.hidden = !canInspect || !!this.inspect
-    if (canInspect && ib.textContent !== c.inspect.label) ib.textContent = c.inspect.label
     q('#tour-inspect-close').hidden = !this.inspect
-    q('#tour-inspect-close').textContent = this.inspect?.checkpoint ? 'Continue the tour ▶' : 'Close and continue'
+    q('#tour-inspect-close').textContent = this.inspect?.wasPlaying || this.inspect?.checkpoint ? 'Continue the tour ▶' : 'Close'
     q('#tour-inspect-note').hidden = !this.inspect
-    q('#stage-action').hidden = ib.hidden && !this.inspect
+    q('#stage-action').hidden = !this.inspect
     this.root.classList.toggle('is-inspecting', !!this.inspect)
     document.querySelector('#globe-stage').classList.toggle('is-waiting', !!this.waiting && !this.inspect)
 
@@ -701,7 +797,7 @@ export class TourController {
       el('button', { type: 'button', class: 'stop-btn', onclick: () => this.seek(c.start) },
         el('span', { class: 'stop-idx', 'aria-hidden': 'true', text: String(i + 1) }),
         el('span', { class: 'stop-label', text: c.title }),
-        c.checkpoint ? el('span', { class: 'stop-tap', text: '👆 your turn' }) : null))))
+        c.checkpoint ? el('span', { class: 'stop-tap', text: c.checkpoint.required ? '👆 your turn' : '🔍 look closer' }) : null))))
     this.q('#tour-end').hidden = true
     this.ov.cards.replaceChildren()
     this.ov.cards.dataset.key = ''
